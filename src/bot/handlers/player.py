@@ -9,6 +9,7 @@ from bot.handlers.signup import refresh_signup_message
 from bot.services.attendance import attendees_for_date
 from bot.services.cards import game_card, signup_card
 from bot.services.permissions import require_group_setup
+from bot.services.scope import resolve_scope
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -63,12 +64,12 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     display_name = " ".join(context.args[1:]).strip()
-    chat_id = update.effective_chat.id
+    scope = resolve_scope(update)
     user = update.effective_user
     name = display_name or _display_name(update)
 
-    already_registered = db.get_player(chat_id, user.id) is not None
-    db.upsert_player(chat_id, user.id, name, user.username, email)
+    already_registered = db.get_player(scope, user.id) is not None
+    db.upsert_player(scope, user.id, name, user.username, email)
 
     if already_registered:
         await update.effective_message.reply_text(f"Updated: {name}, {email}.")
@@ -80,9 +81,9 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @require_group_setup
 async def setemail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
+    scope = resolve_scope(update)
     user = update.effective_user
-    player = db.get_player(chat_id, user.id)
+    player = db.get_player(scope, user.id)
     if player is None:
         await update.effective_message.reply_text(
             "You haven't registered yet — run /register <email> first."
@@ -100,13 +101,13 @@ async def setemail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    db.upsert_player(chat_id, user.id, player["name"], user.username, email)
+    db.upsert_player(scope, user.id, player["name"], user.username, email)
     await update.effective_message.reply_text(f"Email updated to {email}.")
 
 
 @require_group_setup
 async def emails(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    players = db.list_players(update.effective_chat.id)
+    players = db.list_players(resolve_scope(update))
     with_email = [p for p in players if p.get("email")]
     if not with_email:
         await update.effective_message.reply_text(
@@ -123,9 +124,9 @@ async def emails(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @require_group_setup
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
+    scope = resolve_scope(update)
     user = update.effective_user
-    player = db.get_player(chat_id, user.id)
+    player = db.get_player(scope, user.id)
     if player is None:
         await update.effective_message.reply_text(
             "You haven't registered yet — run /register <email>."
@@ -133,7 +134,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     lines = [f"Balance: ${player['balance']}"]
-    txns = db.list_transactions(chat_id, user.id, limit=5)
+    txns = db.list_transactions(scope, user.id, limit=5)
     if txns:
         lines.append("\nRecent transactions:")
         for t in txns:
@@ -143,58 +144,59 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @require_group_setup
 async def squad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
-    month_meta = db.get_open_month(chat_id)
+    scope = resolve_scope(update)
+    month_meta = db.get_open_month(scope)
     if month_meta is None:
         await update.effective_message.reply_text("No open month right now.")
         return
 
     month = month_meta["month"]
-    registered = [r["user_id"] for r in db.list_registrations(chat_id, month)]
-    waitlist = [w["user_id"] for w in db.list_waitlist(chat_id, month)]
-    players_by_id = {p["user_id"]: p for p in db.list_players(chat_id)}
+    registered = [r["user_id"] for r in db.list_registrations(scope, month)]
+    waitlist = [w["user_id"] for w in db.list_waitlist(scope, month)]
+    players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
 
     text, keyboard = signup_card(month_meta, registered, waitlist, players_by_id)
     message = await update.effective_message.reply_text(text, reply_markup=keyboard)
-    db.set_month_signup_message(chat_id, month, message.message_id)
+    db.set_month_signup_message(scope, month, message.message_id)
 
 
 @require_group_setup
 async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
+    scope = resolve_scope(update)
     user = update.effective_user
 
-    if db.get_player(chat_id, user.id) is None:
+    if db.get_player(scope, user.id) is None:
         await update.effective_message.reply_text(
             "You haven't registered yet — run /register <email> first."
         )
         return
 
-    month_meta = db.get_latest_month(chat_id)
+    month_meta = db.get_latest_month(scope)
     if month_meta is None:
         await update.effective_message.reply_text("No active month right now.")
         return
 
     month = month_meta["month"]
-    if db.is_registered(chat_id, month, user.id):
+    if db.is_registered(scope, month, user.id):
         await update.effective_message.reply_text("You're already in the squad.")
         return
 
-    if any(w["user_id"] == user.id for w in db.list_waitlist(chat_id, month)):
+    if any(w["user_id"] == user.id for w in db.list_waitlist(scope, month)):
         await update.effective_message.reply_text("You're already on the waitlist.")
         return
 
-    db.add_waitlist(chat_id, month, user.id)
+    db.add_waitlist(scope, month, user.id)
     await update.effective_message.reply_text(f"Added to the waitlist for {month}.")
 
     if month_meta["status"] == "open":
-        await refresh_signup_message(context.bot, chat_id, month)
+        await refresh_signup_message(context.bot, scope, chat_id, month)
 
 
 @require_group_setup
 async def nextgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
-    month_meta = db.get_latest_month(chat_id)
+    scope = resolve_scope(update)
+    month_meta = db.get_latest_month(scope)
     if month_meta is None or month_meta["status"] != "finalized":
         await update.effective_message.reply_text("No finalized squad right now.")
         return
@@ -208,8 +210,8 @@ async def nextgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     next_date = upcoming[0]
-    attendee_ids = attendees_for_date(chat_id, month_meta["month"], next_date)
-    players_by_id = {p["user_id"]: p for p in db.list_players(chat_id)}
+    attendee_ids = attendees_for_date(scope, month_meta["month"], next_date)
+    players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
     names = [
         players_by_id.get(uid, {}).get("name", f"user {uid}") for uid in attendee_ids
     ]
@@ -221,8 +223,8 @@ async def nextgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @require_group_setup
 async def games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
-    month_meta = db.get_latest_month(chat_id)
+    scope = resolve_scope(update)
+    month_meta = db.get_latest_month(scope)
     if month_meta is None:
         await update.effective_message.reply_text("No active month right now.")
         return
@@ -231,7 +233,7 @@ async def games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     lines = [f"{month} schedule ({month_meta['weekday']}s):"]
     for d in month_meta["game_dates"]:
         if month_meta["status"] == "finalized":
-            count = len(attendees_for_date(chat_id, month, d))
+            count = len(attendees_for_date(scope, month, d))
             lines.append(f"{d}: {count} confirmed")
         else:
             lines.append(f"{d}: signups open")

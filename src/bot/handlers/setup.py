@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 from bot import db
 from bot.services.months import WEEKDAY_NAMES, parse_weekday
 from bot.services.permissions import require_group_admin
+from bot.services.scope import resolve_scope
 
 
 @require_group_admin
@@ -22,14 +23,15 @@ async def setupgroup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         return
 
     chat = update.effective_chat
-    if db.get_group(chat.id) is not None:
+    scope = resolve_scope(update)
+    if db.get_group(scope) is not None:
         await update.effective_message.reply_text(
             f"This group is already set up for {WEEKDAY_NAMES[weekday_index]} games."
         )
         return
 
     db.create_group(
-        chat.id,
+        scope,
         chat.title or chat.full_name or str(chat.id),
         WEEKDAY_NAMES[weekday_index],
     )

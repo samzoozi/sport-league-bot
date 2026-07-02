@@ -7,6 +7,7 @@ from bot.handlers.signup import refresh_signup_message
 from bot.services.cards import signup_card
 from bot.services.months import game_dates_for_month, parse_month, split_cost
 from bot.services.permissions import require_group_admin
+from bot.services.scope import resolve_scope
 from bot.services.users import resolve_target_and_rest, resolve_target_user
 
 
@@ -39,16 +40,16 @@ async def newmonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     month_key = args[0]
-    chat_id = update.effective_chat.id
+    scope = resolve_scope(update)
 
-    if db.get_month(chat_id, month_key) is not None:
+    if db.get_month(scope, month_key) is not None:
         await update.effective_message.reply_text(
             f"{month_key} already has a squad set up."
         )
         return
 
     year, month_num = parsed
-    group = db.get_group(chat_id)
+    group = db.get_group(scope)
     weekday = group["weekday"]
     weekday_index = [
         "Monday",
@@ -67,11 +68,11 @@ async def newmonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    db.create_month(chat_id, month_key, weekday, game_dates, total_cost)
+    db.create_month(scope, month_key, weekday, game_dates, total_cost)
 
-    text, keyboard = signup_card(db.get_month(chat_id, month_key), [], [], {})
+    text, keyboard = signup_card(db.get_month(scope, month_key), [], [], {})
     message = await update.effective_message.reply_text(text, reply_markup=keyboard)
-    db.set_month_signup_message(chat_id, month_key, message.message_id)
+    db.set_month_signup_message(scope, month_key, message.message_id)
 
 
 @require_group_admin
@@ -82,7 +83,8 @@ async def deletemonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     month_key = context.args[0]
     chat_id = update.effective_chat.id
-    month_meta = db.get_month(chat_id, month_key)
+    scope = resolve_scope(update)
+    month_meta = db.get_month(scope, month_key)
     if month_meta is None:
         await update.effective_message.reply_text(f"No month found for {month_key}.")
         return
@@ -95,7 +97,7 @@ async def deletemonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     signup_message_id = month_meta.get("signup_message_id")
-    db.delete_month(chat_id, month_key)
+    db.delete_month(scope, month_key)
 
     if signup_message_id:
         try:
@@ -109,6 +111,7 @@ async def deletemonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 @require_group_admin
 async def addplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
+    scope = resolve_scope(update)
     target = resolve_target_user(update, context)
     if target is None:
         await update.effective_message.reply_text(
@@ -117,7 +120,7 @@ async def addplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    month_meta = db.get_open_month(chat_id)
+    month_meta = db.get_open_month(scope)
     if month_meta is None:
         await update.effective_message.reply_text(
             "No open month right now — run /newmonth first."
@@ -125,25 +128,24 @@ async def addplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     month = month_meta["month"]
-    db.ensure_player_stub(
-        chat_id, target["user_id"], target["name"], target["username"]
-    )
+    db.ensure_player_stub(scope, target["user_id"], target["name"], target["username"])
 
-    if db.is_registered(chat_id, month, target["user_id"]):
+    if db.is_registered(scope, month, target["user_id"]):
         await update.effective_message.reply_text(
             f"{target['name']} is already in the squad."
         )
         return
 
-    db.remove_waitlist_entry(chat_id, month, target["user_id"])
-    db.add_registration(chat_id, month, target["user_id"], added_by="admin")
+    db.remove_waitlist_entry(scope, month, target["user_id"])
+    db.add_registration(scope, month, target["user_id"], added_by="admin")
     await update.effective_message.reply_text(f"Added {target['name']} to the squad.")
-    await refresh_signup_message(context.bot, chat_id, month)
+    await refresh_signup_message(context.bot, scope, chat_id, month)
 
 
 @require_group_admin
 async def removeplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
+    scope = resolve_scope(update)
     target = resolve_target_user(update, context)
     if target is None:
         await update.effective_message.reply_text(
@@ -151,24 +153,25 @@ async def removeplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
 
-    month_meta = db.get_open_month(chat_id)
+    month_meta = db.get_open_month(scope)
     if month_meta is None:
         await update.effective_message.reply_text("No open month right now.")
         return
 
     month = month_meta["month"]
-    db.remove_registration(chat_id, month, target["user_id"])
-    db.remove_waitlist_entry(chat_id, month, target["user_id"])
+    db.remove_registration(scope, month, target["user_id"])
+    db.remove_waitlist_entry(scope, month, target["user_id"])
     await update.effective_message.reply_text(
         f"Removed {target['name']} from the squad and waitlist."
     )
-    await refresh_signup_message(context.bot, chat_id, month)
+    await refresh_signup_message(context.bot, scope, chat_id, month)
 
 
 @require_group_admin
 async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
-    month_meta = db.get_open_month(chat_id)
+    scope = resolve_scope(update)
+    month_meta = db.get_open_month(scope)
     if month_meta is None:
         await update.effective_message.reply_text("No open month to finalize.")
         return
@@ -187,14 +190,14 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     month = month_meta["month"]
     registrations = sorted(
-        db.list_registrations(chat_id, month), key=lambda r: r["joined_at"]
+        db.list_registrations(scope, month), key=lambda r: r["joined_at"]
     )
 
     overflow = registrations[max_players:]
     registrations = registrations[:max_players]
     for r in overflow:
-        db.remove_registration(chat_id, month, r["user_id"])
-        db.add_waitlist(chat_id, month, r["user_id"])
+        db.remove_registration(scope, month, r["user_id"])
+        db.add_waitlist(scope, month, r["user_id"])
 
     if not registrations:
         await update.effective_message.reply_text(
@@ -206,15 +209,15 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     cost_per_player = split_cost(total_cost, len(registrations))
     for r in registrations:
         db.add_transaction(
-            chat_id,
+            scope,
             r["user_id"],
             -cost_per_player,
             f"{month} court share",
             created_by="system",
         )
 
-    db.set_month_cost_per_player(chat_id, month, cost_per_player)
-    db.set_month_status(chat_id, month, "finalized")
+    db.set_month_cost_per_player(scope, month, cost_per_player)
+    db.set_month_status(scope, month, "finalized")
 
     lines = [
         f"Finalized {month}: {len(registrations)} players, ${cost_per_player:.2f} each charged."
@@ -224,7 +227,7 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"{len(overflow)} moved to the waitlist (squad capped at {max_players})."
         )
     await update.effective_message.reply_text("\n".join(lines))
-    await refresh_signup_message(context.bot, chat_id, month)
+    await refresh_signup_message(context.bot, scope, chat_id, month)
 
 
 @require_group_admin
@@ -279,16 +282,14 @@ async def _adjust_balance(
         return
 
     description = " ".join(rest[1:]).strip() or default_desc
-    chat_id = update.effective_chat.id
+    scope = resolve_scope(update)
 
-    db.ensure_player_stub(
-        chat_id, target["user_id"], target["name"], target["username"]
-    )
+    db.ensure_player_stub(scope, target["user_id"], target["name"], target["username"])
     db.add_transaction(
-        chat_id, target["user_id"], sign * amount, description, created_by="admin"
+        scope, target["user_id"], sign * amount, description, created_by="admin"
     )
 
-    player = db.get_player(chat_id, target["user_id"])
+    player = db.get_player(scope, target["user_id"])
     await update.effective_message.reply_text(
         f"{label} {target['name']} ${amount:.2f} ({description}). New balance: ${player['balance']}."
     )
@@ -296,7 +297,7 @@ async def _adjust_balance(
 
 @require_group_admin
 async def balances(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    players = db.list_players(update.effective_chat.id)
+    players = db.list_players(resolve_scope(update))
     if not players:
         await update.effective_message.reply_text("No registered players yet.")
         return

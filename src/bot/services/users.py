@@ -1,6 +1,7 @@
 from telegram import Update
 
 from bot import db
+from bot.services.scope import resolve_scope
 
 
 def resolve_target_user(update: Update, context) -> dict | None:
@@ -21,7 +22,7 @@ def resolve_target_user(update: Update, context) -> dict | None:
 
     if context.args:
         username = context.args[0].lstrip("@").lower()
-        for player in db.list_players(update.effective_chat.id):
+        for player in db.list_players(resolve_scope(update)):
             if (player.get("username") or "").lower() == username:
                 return {
                     "user_id": player["user_id"],
@@ -32,9 +33,9 @@ def resolve_target_user(update: Update, context) -> dict | None:
     return None
 
 
-def _lookup_by_username(chat_id: int, username: str) -> dict | None:
+def _lookup_by_username(scope: str, username: str) -> dict | None:
     username = username.lstrip("@").lower()
-    for player in db.list_players(chat_id):
+    for player in db.list_players(scope):
         if (player.get("username") or "").lower() == username:
             return {
                 "user_id": player["user_id"],
@@ -76,7 +77,7 @@ def resolve_target_and_rest(update: Update, context) -> tuple[dict | None, list[
             }, rest
 
     if args and args[0].startswith("@"):
-        target = _lookup_by_username(update.effective_chat.id, args[0])
+        target = _lookup_by_username(resolve_scope(update), args[0])
         return target, args[1:]
 
     return None, args

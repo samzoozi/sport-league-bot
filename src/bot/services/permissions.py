@@ -4,6 +4,7 @@ from telegram import Chat, Update
 from telegram.ext import ContextTypes
 
 from bot import db
+from bot.services.scope import resolve_scope
 
 ADMIN_STATUSES = {"administrator", "creator"}
 
@@ -44,7 +45,7 @@ def require_group_setup(handler):
     @require_group_chat
     @functools.wraps(handler)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if db.get_group(update.effective_chat.id) is None:
+        if db.get_group(resolve_scope(update)) is None:
             await update.effective_message.reply_text(
                 "This group isn't set up yet. Ask a group admin to run "
                 "/setupgroup <weekday> first (e.g. /setupgroup Monday)."

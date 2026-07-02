@@ -32,10 +32,6 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def group_pk(chat_id: int) -> str:
-    return f"GROUP#{chat_id}"
-
-
 def player_sk(user_id: int) -> str:
     return f"PLAYER#{user_id}#PROFILE"
 
@@ -60,15 +56,15 @@ def skip_sk(date: str, user_id: int) -> str:
     return f"GAME#{date}#SKIP#{user_id}"
 
 
-def get_group(chat_id: int) -> dict | None:
-    resp = table().get_item(Key={"PK": group_pk(chat_id), "SK": "META"})
+def get_group(scope: str) -> dict | None:
+    resp = table().get_item(Key={"PK": scope, "SK": "META"})
     return resp.get("Item")
 
 
-def create_group(chat_id: int, title: str, weekday: str) -> None:
+def create_group(scope: str, title: str, weekday: str) -> None:
     table().put_item(
         Item={
-            "PK": group_pk(chat_id),
+            "PK": scope,
             "SK": "META",
             "item_type": "GROUP",
             "title": title,
@@ -78,16 +74,16 @@ def create_group(chat_id: int, title: str, weekday: str) -> None:
     )
 
 
-def get_player(chat_id: int, user_id: int) -> dict | None:
-    resp = table().get_item(Key={"PK": group_pk(chat_id), "SK": player_sk(user_id)})
+def get_player(scope: str, user_id: int) -> dict | None:
+    resp = table().get_item(Key={"PK": scope, "SK": player_sk(user_id)})
     return resp.get("Item")
 
 
 def upsert_player(
-    chat_id: int, user_id: int, name: str, username: str | None, email: str
+    scope: str, user_id: int, name: str, username: str | None, email: str
 ) -> None:
     table().update_item(
-        Key={"PK": group_pk(chat_id), "SK": player_sk(user_id)},
+        Key={"PK": scope, "SK": player_sk(user_id)},
         UpdateExpression=(
             "SET item_type = :t, user_id = :uid, #n = :name, username = :username, "
             "email = :email, balance = if_not_exists(balance, :zero)"
@@ -105,14 +101,14 @@ def upsert_player(
 
 
 def ensure_player_stub(
-    chat_id: int, user_id: int, name: str, username: str | None
+    scope: str, user_id: int, name: str, username: str | None
 ) -> dict:
-    player = get_player(chat_id, user_id)
+    player = get_player(scope, user_id)
     if player is not None:
         return player
 
     item = {
-        "PK": group_pk(chat_id),
+        "PK": scope,
         "SK": player_sk(user_id),
         "item_type": "PROFILE",
         "user_id": user_id,
@@ -125,12 +121,12 @@ def ensure_player_stub(
     return item
 
 
-def list_players(chat_id: int) -> list[dict]:
+def list_players(scope: str) -> list[dict]:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
         FilterExpression="item_type = :t",
         ExpressionAttributeValues={
-            ":pk": group_pk(chat_id),
+            ":pk": scope,
             ":prefix": "PLAYER#",
             ":t": "PROFILE",
         },
@@ -138,11 +134,11 @@ def list_players(chat_id: int) -> list[dict]:
     return resp.get("Items", [])
 
 
-def list_transactions(chat_id: int, user_id: int, limit: int = 5) -> list[dict]:
+def list_transactions(scope: str, user_id: int, limit: int = 5) -> list[dict]:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
         ExpressionAttributeValues={
-            ":pk": group_pk(chat_id),
+            ":pk": scope,
             ":prefix": f"PLAYER#{user_id}#TXN#",
         },
         ScanIndexForward=False,
@@ -152,11 +148,11 @@ def list_transactions(chat_id: int, user_id: int, limit: int = 5) -> list[dict]:
 
 
 def create_month(
-    chat_id: int, month: str, weekday: str, game_dates: list[str], total_cost
+    scope: str, month: str, weekday: str, game_dates: list[str], total_cost
 ) -> None:
     table().put_item(
         Item={
-            "PK": group_pk(chat_id),
+            "PK": scope,
             "SK": month_meta_sk(month),
             "item_type": "MONTH",
             "month": month,
@@ -178,18 +174,18 @@ def _normalize_month(item: dict | None) -> dict | None:
     return item
 
 
-def get_month(chat_id: int, month: str) -> dict | None:
-    resp = table().get_item(Key={"PK": group_pk(chat_id), "SK": month_meta_sk(month)})
+def get_month(scope: str, month: str) -> dict | None:
+    resp = table().get_item(Key={"PK": scope, "SK": month_meta_sk(month)})
     return _normalize_month(resp.get("Item"))
 
 
-def get_open_month(chat_id: int) -> dict | None:
+def get_open_month(scope: str) -> dict | None:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
         FilterExpression="item_type = :t AND #s = :open",
         ExpressionAttributeNames={"#s": "status"},
         ExpressionAttributeValues={
-            ":pk": group_pk(chat_id),
+            ":pk": scope,
             ":prefix": "MONTH#",
             ":t": "MONTH",
             ":open": "open",
@@ -199,35 +195,35 @@ def get_open_month(chat_id: int) -> dict | None:
     return _normalize_month(items[0]) if items else None
 
 
-def set_month_signup_message(chat_id: int, month: str, message_id: int) -> None:
+def set_month_signup_message(scope: str, month: str, message_id: int) -> None:
     table().update_item(
-        Key={"PK": group_pk(chat_id), "SK": month_meta_sk(month)},
+        Key={"PK": scope, "SK": month_meta_sk(month)},
         UpdateExpression="SET signup_message_id = :m",
         ExpressionAttributeValues={":m": message_id},
     )
 
 
-def set_month_status(chat_id: int, month: str, status: str) -> None:
+def set_month_status(scope: str, month: str, status: str) -> None:
     table().update_item(
-        Key={"PK": group_pk(chat_id), "SK": month_meta_sk(month)},
+        Key={"PK": scope, "SK": month_meta_sk(month)},
         UpdateExpression="SET #s = :status",
         ExpressionAttributeNames={"#s": "status"},
         ExpressionAttributeValues={":status": status},
     )
 
 
-def set_month_cost_per_player(chat_id: int, month: str, cost_per_player) -> None:
+def set_month_cost_per_player(scope: str, month: str, cost_per_player) -> None:
     table().update_item(
-        Key={"PK": group_pk(chat_id), "SK": month_meta_sk(month)},
+        Key={"PK": scope, "SK": month_meta_sk(month)},
         UpdateExpression="SET cost_per_player = :c",
         ExpressionAttributeValues={":c": Decimal(str(cost_per_player))},
     )
 
 
-def add_registration(chat_id: int, month: str, user_id: int, added_by: str) -> None:
+def add_registration(scope: str, month: str, user_id: int, added_by: str) -> None:
     table().put_item(
         Item={
-            "PK": group_pk(chat_id),
+            "PK": scope,
             "SK": registration_sk(month, user_id),
             "item_type": "REG",
             "user_id": user_id,
@@ -237,34 +233,30 @@ def add_registration(chat_id: int, month: str, user_id: int, added_by: str) -> N
     )
 
 
-def remove_registration(chat_id: int, month: str, user_id: int) -> None:
-    table().delete_item(
-        Key={"PK": group_pk(chat_id), "SK": registration_sk(month, user_id)}
-    )
+def remove_registration(scope: str, month: str, user_id: int) -> None:
+    table().delete_item(Key={"PK": scope, "SK": registration_sk(month, user_id)})
 
 
-def is_registered(chat_id: int, month: str, user_id: int) -> bool:
-    resp = table().get_item(
-        Key={"PK": group_pk(chat_id), "SK": registration_sk(month, user_id)}
-    )
+def is_registered(scope: str, month: str, user_id: int) -> bool:
+    resp = table().get_item(Key={"PK": scope, "SK": registration_sk(month, user_id)})
     return "Item" in resp
 
 
-def list_registrations(chat_id: int, month: str) -> list[dict]:
+def list_registrations(scope: str, month: str) -> list[dict]:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
         ExpressionAttributeValues={
-            ":pk": group_pk(chat_id),
+            ":pk": scope,
             ":prefix": f"MONTH#{month}#REG#",
         },
     )
     return resp.get("Items", [])
 
 
-def add_waitlist(chat_id: int, month: str, user_id: int) -> None:
+def add_waitlist(scope: str, month: str, user_id: int) -> None:
     table().put_item(
         Item={
-            "PK": group_pk(chat_id),
+            "PK": scope,
             "SK": waitlist_sk(month, user_id),
             "item_type": "WAITLIST",
             "user_id": user_id,
@@ -273,17 +265,17 @@ def add_waitlist(chat_id: int, month: str, user_id: int) -> None:
     )
 
 
-def remove_waitlist_entry(chat_id: int, month: str, user_id: int) -> None:
-    for entry in list_waitlist(chat_id, month):
+def remove_waitlist_entry(scope: str, month: str, user_id: int) -> None:
+    for entry in list_waitlist(scope, month):
         if entry["user_id"] == user_id:
-            table().delete_item(Key={"PK": group_pk(chat_id), "SK": entry["SK"]})
+            table().delete_item(Key={"PK": scope, "SK": entry["SK"]})
 
 
-def list_waitlist(chat_id: int, month: str) -> list[dict]:
+def list_waitlist(scope: str, month: str) -> list[dict]:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
         ExpressionAttributeValues={
-            ":pk": group_pk(chat_id),
+            ":pk": scope,
             ":prefix": f"MONTH#{month}#WL#",
         },
     )
@@ -291,11 +283,11 @@ def list_waitlist(chat_id: int, month: str) -> list[dict]:
 
 
 def add_transaction(
-    chat_id: int, user_id: int, amount, description: str, created_by: str
+    scope: str, user_id: int, amount, description: str, created_by: str
 ) -> None:
     amount_dec = Decimal(str(amount))
     txn_item = {
-        "PK": group_pk(chat_id),
+        "PK": scope,
         "SK": player_txn_sk(user_id),
         "item_type": "TXN",
         "user_id": user_id,
@@ -315,7 +307,7 @@ def add_transaction(
                 "Update": {
                     "TableName": TABLE_NAME,
                     "Key": {
-                        "PK": _serializer.serialize(group_pk(chat_id)),
+                        "PK": _serializer.serialize(scope),
                         "SK": _serializer.serialize(player_sk(user_id)),
                     },
                     "UpdateExpression": "ADD balance :amt",
@@ -328,12 +320,12 @@ def add_transaction(
     )
 
 
-def get_latest_month(chat_id: int) -> dict | None:
+def get_latest_month(scope: str) -> dict | None:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
         FilterExpression="item_type = :t",
         ExpressionAttributeValues={
-            ":pk": group_pk(chat_id),
+            ":pk": scope,
             ":prefix": "MONTH#",
             ":t": "MONTH",
         },
@@ -344,10 +336,10 @@ def get_latest_month(chat_id: int) -> dict | None:
     return _normalize_month(max(items, key=lambda item: item["month"]))
 
 
-def add_skip(chat_id: int, date: str, user_id: int) -> None:
+def add_skip(scope: str, date: str, user_id: int) -> None:
     table().put_item(
         Item={
-            "PK": group_pk(chat_id),
+            "PK": scope,
             "SK": skip_sk(date, user_id),
             "item_type": "SKIP",
             "user_id": user_id,
@@ -359,36 +351,36 @@ def add_skip(chat_id: int, date: str, user_id: int) -> None:
     )
 
 
-def get_skip(chat_id: int, date: str, user_id: int) -> dict | None:
-    resp = table().get_item(Key={"PK": group_pk(chat_id), "SK": skip_sk(date, user_id)})
+def get_skip(scope: str, date: str, user_id: int) -> dict | None:
+    resp = table().get_item(Key={"PK": scope, "SK": skip_sk(date, user_id)})
     return resp.get("Item")
 
 
 def set_skip_replaced(
-    chat_id: int, date: str, skipper_id: int, replacement_id: int
+    scope: str, date: str, skipper_id: int, replacement_id: int
 ) -> None:
     table().update_item(
-        Key={"PK": group_pk(chat_id), "SK": skip_sk(date, skipper_id)},
+        Key={"PK": scope, "SK": skip_sk(date, skipper_id)},
         UpdateExpression="SET #s = :replaced, replacement_id = :r",
         ExpressionAttributeNames={"#s": "status"},
         ExpressionAttributeValues={":replaced": "replaced", ":r": replacement_id},
     )
 
 
-def list_skips_for_date(chat_id: int, date: str) -> list[dict]:
+def list_skips_for_date(scope: str, date: str) -> list[dict]:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
         ExpressionAttributeValues={
-            ":pk": group_pk(chat_id),
+            ":pk": scope,
             ":prefix": f"GAME#{date}#SKIP#",
         },
     )
     return resp.get("Items", [])
 
 
-def delete_month(chat_id: int, month: str) -> None:
-    table().delete_item(Key={"PK": group_pk(chat_id), "SK": month_meta_sk(month)})
-    for r in list_registrations(chat_id, month):
-        table().delete_item(Key={"PK": group_pk(chat_id), "SK": r["SK"]})
-    for w in list_waitlist(chat_id, month):
-        table().delete_item(Key={"PK": group_pk(chat_id), "SK": w["SK"]})
+def delete_month(scope: str, month: str) -> None:
+    table().delete_item(Key={"PK": scope, "SK": month_meta_sk(month)})
+    for r in list_registrations(scope, month):
+        table().delete_item(Key={"PK": scope, "SK": r["SK"]})
+    for w in list_waitlist(scope, month):
+        table().delete_item(Key={"PK": scope, "SK": w["SK"]})

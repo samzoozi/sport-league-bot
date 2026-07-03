@@ -89,10 +89,10 @@ async def skip_pick_callback(
     await query.answer()
 
     skipper = db.get_player(scope, user.id)
-    await _offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper)
+    await offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper)
 
 
-async def _offer_next(
+async def offer_next(
     bot, scope: str, chat_id: int, thread_id: int | None, date_str: str, skipper: dict
 ) -> None:
     waitlist = db.list_waitlist(scope, date_str)
@@ -163,7 +163,7 @@ async def replace_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.edit_message_text(query.message.text + "\n\n(declined)")
         await query.answer()
         skipper = db.get_player(scope, skipper_id)
-        await _offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper)
+        await offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper)
         return
 
     db.remove_waitlist_entry(scope, date_str, candidate_id)

@@ -5,11 +5,12 @@ from telegram.ext import ContextTypes
 
 from bot import db
 from bot.handlers.signup import post_signup_card
+from bot.handlers.skips import offer_next
 from bot.services.attendance import attendees_for_date
 from bot.services.cards import game_card
 from bot.services.months import current_month, next_game_date
 from bot.services.permissions import require_group_setup
-from bot.services.scope import resolve_scope
+from bot.services.scope import resolve_scope, topic_thread_id
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -187,13 +188,39 @@ async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("You're already in the squad.")
         return
 
-    if any(w["user_id"] == user.id for w in db.list_waitlist(scope, next_date)):
+    existing_waitlist = db.list_waitlist(scope, next_date)
+    if any(w["user_id"] == user.id for w in existing_waitlist):
         await update.effective_message.reply_text(
             f"You're already on the waitlist for {next_date}."
         )
         return
 
     db.add_waitlist(scope, next_date, user.id)
+
+    # If the waitlist was empty, there's no offer already in flight for this
+    # date — so if a skip is still unfilled (nobody was waiting, or everyone
+    # who was declined), immediately offer this new joiner the open spot
+    # instead of leaving them stuck behind a queue that no longer exists.
+    if not existing_waitlist:
+        open_skips = [
+            s for s in db.list_skips_for_date(scope, next_date) if s["status"] == "open"
+        ]
+        if open_skips:
+            earliest = min(open_skips, key=lambda s: s["created_at"])
+            skipper = db.get_player(scope, int(earliest["user_id"]))
+            await offer_next(
+                context.bot,
+                scope,
+                update.effective_chat.id,
+                topic_thread_id(update),
+                next_date,
+                skipper,
+            )
+            await update.effective_message.reply_text(
+                f"There's an open spot for {next_date} — check the offer above!"
+            )
+            return
+
     await update.effective_message.reply_text(f"Added to the waitlist for {next_date}.")
 
 

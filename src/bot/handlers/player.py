@@ -150,9 +150,9 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 @require_group_setup
 async def squad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
-    month_meta = db.get_open_month(scope)
+    month_meta = current_month(db.list_months(scope))
     if month_meta is None:
-        await update.effective_message.reply_text("No open month right now.")
+        await update.effective_message.reply_text("No active month right now.")
         return
 
     await post_signup_card(

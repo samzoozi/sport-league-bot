@@ -132,13 +132,13 @@ def test_skip_lifecycle():
     assert skip["replacement_id"] == 802
 
 
-def test_get_latest_month_picks_max_by_key():
+def test_list_months_returns_all():
     db.create_month(SCOPE, "2026-06", "Monday", ["2026-06-01"], 100)
     db.create_month(SCOPE, "2026-08", "Monday", ["2026-08-03"], 100)
     db.create_month(SCOPE, "2026-07", "Monday", ["2026-07-06"], 100)
 
-    latest = db.get_latest_month(SCOPE)
-    assert latest["month"] == "2026-08"
+    months = {m["month"] for m in db.list_months(SCOPE)}
+    assert months == {"2026-06", "2026-08", "2026-07"}
 
 
 def test_get_open_month_ignores_finalized():

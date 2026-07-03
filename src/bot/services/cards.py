@@ -18,27 +18,40 @@ def signup_card(
     month_meta: dict,
     registered_ids: list[int],
     players_by_id: dict[int, dict],
-) -> tuple[str, InlineKeyboardMarkup]:
+) -> tuple[str, InlineKeyboardMarkup | None]:
     month = month_meta["month"]
     dates = ", ".join(month_meta["game_dates"])
     total_cost = month_meta["total_cost"]
     squad_names = _names(registered_ids, players_by_id)
+    finalized = month_meta["status"] == "finalized"
 
-    per_player = total_cost / len(registered_ids) if registered_ids else None
-    cost_line = f"Total cost: ${total_cost}"
-    if per_player is not None:
-        cost_line += f" (~${per_player:.2f}/player at current squad size)"
+    cost_per_player = month_meta.get("cost_per_player")
+    if finalized and cost_per_player is not None:
+        cost_line = f"Total cost: ${total_cost} (${cost_per_player}/player, charged)"
+    else:
+        per_player = total_cost / len(registered_ids) if registered_ids else None
+        cost_line = f"Total cost: ${total_cost}"
+        if per_player is not None:
+            cost_line += f" (~${per_player:.2f}/player at current squad size)"
 
+    header = (
+        f"🔒 {_month_label(month)} — FINALIZED"
+        if finalized
+        else f"📅 {_month_label(month)}"
+    )
     lines = [
-        f"📅 {_month_label(month)} — games on {month_meta['weekday']}s",
+        f"{header} — games on {month_meta['weekday']}s",
         f"Dates: {dates}",
         cost_line,
         "",
-        f"Squad ({len(squad_names)}/{MAX_PLAYERS}):",
+        f"{'Final squad' if finalized else 'Squad'} ({len(squad_names)}/{MAX_PLAYERS}):",
     ]
     lines += [f"{i}. {name}" for i, name in enumerate(squad_names, 1)] or ["(empty)"]
-    lines += ["", "Tap a button below to join or decline."]
 
+    if finalized:
+        return "\n".join(lines), None
+
+    lines += ["", "Tap a button below to join or decline."]
     keyboard = InlineKeyboardMarkup(
         [
             [

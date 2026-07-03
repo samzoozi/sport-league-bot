@@ -4,9 +4,10 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from bot import db
+from bot.handlers.signup import post_signup_card
 from bot.services.attendance import attendees_for_date
-from bot.services.cards import game_card, signup_card
-from bot.services.months import next_game_date
+from bot.services.cards import game_card
+from bot.services.months import current_month, next_game_date
 from bot.services.permissions import require_group_setup
 from bot.services.scope import resolve_scope
 
@@ -33,6 +34,8 @@ HELP_MESSAGE = (
     "/finalize [max_players] — lock the squad and charge everyone their share\n"
     "/charge @user <amount> <desc> — reply to their message or use @username\n"
     "/credit @user <amount> <desc> — reply to their message or use @username\n"
+    "/chargeall <YYYY-MM> <amount> <desc> — charge that month's whole squad the same amount each\n"
+    "/creditall <YYYY-MM> <amount> <desc> — credit that month's whole squad the same amount each\n"
     "/paid @user <amount> — record a payment received\n"
     "/balances — show everyone's balance"
 )
@@ -149,13 +152,9 @@ async def squad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("No open month right now.")
         return
 
-    month = month_meta["month"]
-    registered = [r["user_id"] for r in db.list_registrations(scope, month)]
-    players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
-
-    text, keyboard = signup_card(month_meta, registered, players_by_id)
-    message = await update.effective_message.reply_text(text, reply_markup=keyboard)
-    db.set_month_signup_message(scope, month, message.message_id)
+    await post_signup_card(
+        update.effective_message.reply_text, scope, month_meta["month"]
+    )
 
 
 @require_group_setup
@@ -169,7 +168,7 @@ async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    month_meta = db.get_latest_month(scope)
+    month_meta = current_month(db.list_months(scope))
     if month_meta is None or month_meta["status"] != "finalized":
         await update.effective_message.reply_text(
             "Waitlist requests only apply once a month has been finalized."
@@ -201,7 +200,7 @@ async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 @require_group_setup
 async def nextgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
-    month_meta = db.get_latest_month(scope)
+    month_meta = current_month(db.list_months(scope))
     if month_meta is None or month_meta["status"] != "finalized":
         await update.effective_message.reply_text("No finalized squad right now.")
         return
@@ -227,7 +226,7 @@ async def nextgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 @require_group_setup
 async def games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
-    month_meta = db.get_latest_month(scope)
+    month_meta = current_month(db.list_months(scope))
     if month_meta is None:
         await update.effective_message.reply_text("No active month right now.")
         return

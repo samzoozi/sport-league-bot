@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes
 
 from bot import db
 from bot.services.mentions import mention_text_and_entities
-from bot.services.months import next_game_date, split_cost
+from bot.services.months import current_month, next_game_date, split_cost
 from bot.services.permissions import require_group_setup
 from bot.services.scope import resolve_scope, topic_thread_id
 
@@ -19,7 +19,7 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    month_meta = db.get_latest_month(scope)
+    month_meta = current_month(db.list_months(scope))
     if month_meta is None or month_meta["status"] != "finalized":
         await update.effective_message.reply_text(
             "No finalized squad right now — skips only apply once a month has been finalized."
@@ -68,7 +68,7 @@ async def skip_pick_callback(
     thread_id = topic_thread_id(update)
     user = update.effective_user
 
-    month_meta = db.get_latest_month(scope)
+    month_meta = current_month(db.list_months(scope))
     if month_meta is None or date_str not in month_meta["game_dates"]:
         await query.answer("This game is no longer valid.", show_alert=True)
         return
@@ -148,7 +148,7 @@ async def replace_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("This offer isn't for you.", show_alert=True)
         return
 
-    month_meta = db.get_latest_month(scope)
+    month_meta = current_month(db.list_months(scope))
     if month_meta is None:
         await query.answer("This offer is no longer valid.", show_alert=True)
         return

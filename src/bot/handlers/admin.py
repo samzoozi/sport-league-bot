@@ -3,15 +3,15 @@ from telegram.ext import ContextTypes
 
 from bot import db
 from bot.config import MAX_PLAYERS
-from bot.handlers.signup import refresh_signup_message
-from bot.services.cards import signup_card
+from bot.handlers.signup import post_signup_card, refresh_signup_message
 from bot.services.months import game_dates_for_month, parse_month, split_cost
-from bot.services.permissions import require_group_admin
+from bot.services.permissions import require_group_admin, require_group_setup
 from bot.services.scope import resolve_scope
 from bot.services.users import resolve_target_and_rest, resolve_target_user
 
 
 @require_group_admin
+@require_group_setup
 async def newmonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args = context.args
     if len(args) < 2:
@@ -69,10 +69,7 @@ async def newmonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     db.create_month(scope, month_key, weekday, game_dates, total_cost)
-
-    text, keyboard = signup_card(db.get_month(scope, month_key), [], {})
-    message = await update.effective_message.reply_text(text, reply_markup=keyboard)
-    db.set_month_signup_message(scope, month_key, message.message_id)
+    await post_signup_card(update.effective_message.reply_text, scope, month_key)
 
 
 @require_group_admin
@@ -225,6 +222,7 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     await update.effective_message.reply_text("\n".join(lines))
     await refresh_signup_message(context.bot, scope, chat_id, month)
+    await post_signup_card(update.effective_message.reply_text, scope, month)
 
 
 @require_group_admin
@@ -289,6 +287,57 @@ async def _adjust_balance(
     player = db.get_player(scope, target["user_id"])
     await update.effective_message.reply_text(
         f"{label} {target['name']} ${amount:.2f} ({description}). New balance: ${player['balance']}."
+    )
+
+
+@require_group_admin
+async def chargeall(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _adjust_balance_all(update, context, sign=-1, label="Charged", verb="charge")
+
+
+@require_group_admin
+async def creditall(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _adjust_balance_all(update, context, sign=1, label="Credited", verb="credit")
+
+
+async def _adjust_balance_all(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, sign: int, label: str, verb: str
+) -> None:
+    args = context.args
+    if len(args) < 2:
+        await update.effective_message.reply_text(
+            f"Usage: /{verb}all <YYYY-MM> <amount> [description]"
+        )
+        return
+
+    month_key = args[0]
+    try:
+        amount = float(args[1])
+        if amount <= 0:
+            raise ValueError
+    except ValueError:
+        await update.effective_message.reply_text("Amount must be a positive number.")
+        return
+
+    description = " ".join(args[2:]).strip() or verb
+    scope = resolve_scope(update)
+    registrations = db.list_registrations(scope, month_key)
+    if not registrations:
+        await update.effective_message.reply_text(f"No squad found for {month_key}.")
+        return
+
+    players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
+    for r in registrations:
+        db.add_transaction(
+            scope, r["user_id"], sign * amount, description, created_by="admin"
+        )
+
+    names = [
+        players_by_id.get(r["user_id"], {}).get("name", f"user {r['user_id']}")
+        for r in registrations
+    ]
+    await update.effective_message.reply_text(
+        f"{label} {len(registrations)} players ${amount:.2f} each ({description}): {', '.join(names)}."
     )
 
 

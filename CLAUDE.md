@@ -65,6 +65,7 @@ These aren't arbitrary — they're explicit product decisions, not something to 
 - **Pre-finalize (open signup):** only Join / Decline. No self-serve waitlist during signup — `/finalize` is the only capacity enforcement, sorting registrations by join time and dropping anyone past `MAX_PLAYERS` (no waitlist placement for them either — they're just removed).
 - **Post-finalize:** `/waitlist` and `/skip` both only ever apply to the **next match** — the earliest game date in the month that hasn't happened yet (`services/months.next_game_date`). There's no "waitlist for the whole month" or "skip any future date" — a player waitlisted for one date isn't automatically in line for a later one, and rolls over to the following date for free the day after a match happens (since `next_game_date` just filters `game_date >= today`, no explicit rollover step needed).
 - This is why the waitlist DynamoDB key (`GAME#<date>#WL#...`) mirrors the skip key (`GAME#<date>#SKIP#...`) rather than being month-scoped — both are inherently per-game concepts now.
+- **Multiple months can coexist**, e.g. a coordinator finalizes next month's squad while this month's games are still being played. `/nextgame`, `/skip`, `/waitlist`, and `/games` don't use "whichever month was created most recently" — they use `services/months.current_month`, which picks the *finalized* month with the earliest still-upcoming game date (falling back to the most recently created month only if no finalized month has any upcoming date left). Don't reintroduce a plain "pick the max month key" shortcut here (that was `db.get_latest_month`, since removed) — it silently jumps to a newer month before the current one's games are actually done.
 
 ### Permissions and gating (`src/bot/services/permissions.py`)
 
@@ -89,6 +90,10 @@ Nothing in this codebase sets `parse_mode="Markdown"`/`"HTML"`. Player names and
 - `handlers/` — one file per command group (`setup`, `player`, `admin`, `signup` callbacks, `skips` callbacks), thin: parse args, call `db`/`services`, reply.
 - `services/` — business logic with no Telegram-specific I/O beyond what's passed in: `months` (date math, cost split), `permissions`, `scope` (group/topic scope resolution), `users` (mention resolution), `mentions` (mention formatting), `cards` (message text formatting), `attendance` (who's actually playing a given date, accounting for skips/replacements).
 - `app.py` builds the `Application`, registers every handler, and pushes two separate Telegram command menus via `set_my_commands` — one scoped to all group chats (player commands) and one scoped to chat administrators (adds the admin commands on top).
+
+### Dev vs. prod config for `MIN_PLAYERS`/`STANDARD_PLAYERS`/`MAX_PLAYERS`
+
+`config.py` reads these from env vars with the real values (10/12/14) baked in as defaults. Local `.env` intentionally overrides them lower for testing (so exercising "squad full"/waitlist/overflow doesn't require a real 14-person squad) — this is deliberate, not a bug to "fix" by removing the overrides. When the CDK stack is built, do **not** copy these into the Lambda's environment variables — leaving them unset in production is what makes it pick up the real defaults automatically. This env-var-with-sane-default pattern is the general approach for any other dev/prod config split too; it doesn't need a second config file.
 
 ### Deployment status
 

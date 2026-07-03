@@ -32,6 +32,14 @@ ADMIN_COMMANDS = PLAYER_COMMANDS + [
     BotCommand("finalize", "Lock the squad and charge everyone their share"),
     BotCommand("charge", "Charge a player: /charge @user <amount> <desc>"),
     BotCommand("credit", "Credit a player: /credit @user <amount> <desc>"),
+    BotCommand(
+        "chargeall",
+        "Charge a whole month's squad: /chargeall <YYYY-MM> <amount> <desc>",
+    ),
+    BotCommand(
+        "creditall",
+        "Credit a whole month's squad: /creditall <YYYY-MM> <amount> <desc>",
+    ),
     BotCommand("paid", "Record a payment: /paid @user <amount>"),
     BotCommand("balances", "Show everyone's balance"),
 ]
@@ -67,6 +75,8 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("finalize", admin.finalize))
     application.add_handler(CommandHandler("charge", admin.charge))
     application.add_handler(CommandHandler("credit", admin.credit))
+    application.add_handler(CommandHandler("chargeall", admin.chargeall))
+    application.add_handler(CommandHandler("creditall", admin.creditall))
     application.add_handler(CommandHandler("paid", admin.paid))
     application.add_handler(CommandHandler("balances", admin.balances))
     application.add_handler(

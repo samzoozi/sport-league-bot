@@ -323,7 +323,7 @@ def add_transaction(
     )
 
 
-def get_latest_month(scope: str) -> dict | None:
+def list_months(scope: str) -> list[dict]:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
         FilterExpression="item_type = :t",
@@ -333,10 +333,7 @@ def get_latest_month(scope: str) -> dict | None:
             ":t": "MONTH",
         },
     )
-    items = resp.get("Items", [])
-    if not items:
-        return None
-    return _normalize_month(max(items, key=lambda item: item["month"]))
+    return [_normalize_month(item) for item in resp.get("Items", [])]
 
 
 def add_skip(scope: str, date: str, user_id: int) -> None:

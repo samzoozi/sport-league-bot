@@ -60,3 +60,30 @@ def next_game_date(game_dates: list[str], today: str | None = None) -> str | Non
     today = today or date.today().isoformat()
     upcoming = [d for d in game_dates if d >= today]
     return upcoming[0] if upcoming else None
+
+
+def current_month(months: list[dict], today: str | None = None) -> dict | None:
+    """Which month record "owns" the next game right now.
+
+    Multiple months can legitimately coexist — e.g. a coordinator finalizes
+    next month's squad while this month's games are still being played. The
+    month that matters for /nextgame, /skip, /waitlist, and /games is
+    whichever finalized month has the earliest still-upcoming game date, not
+    whichever month was created most recently. If no finalized month has any
+    upcoming date left, fall back to the most recently created month overall
+    (e.g. a month still in open signup, or the last one ever played)."""
+    today = today or date.today().isoformat()
+
+    candidates = []
+    for m in months:
+        if m["status"] != "finalized":
+            continue
+        nxt = next_game_date(m["game_dates"], today)
+        if nxt is not None:
+            candidates.append((nxt, m))
+
+    if candidates:
+        candidates.sort(key=lambda pair: pair[0])
+        return candidates[0][1]
+
+    return max(months, key=lambda m: m["month"]) if months else None

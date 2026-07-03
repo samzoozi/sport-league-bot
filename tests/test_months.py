@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from bot.services.months import (
+    current_month,
     game_dates_for_month,
     next_game_date,
     parse_month,
@@ -104,3 +105,54 @@ def test_next_game_date_rolls_over_the_day_after():
 def test_next_game_date_none_when_all_dates_passed():
     dates = ["2026-08-03", "2026-08-10"]
     assert next_game_date(dates, today="2026-08-11") is None
+
+
+def test_current_month_prefers_earlier_unresolved_month_over_newer_one():
+    # A coordinator finalizes next month's squad while this month's games
+    # are still being played — the still-in-progress month must win, not
+    # whichever month was created most recently.
+    july = {
+        "month": "2026-07",
+        "status": "finalized",
+        "game_dates": ["2026-07-06", "2026-07-13"],
+    }
+    august = {"month": "2026-08", "status": "finalized", "game_dates": ["2026-08-03"]}
+
+    assert current_month([july, august], today="2026-07-02")["month"] == "2026-07"
+
+
+def test_current_month_rolls_over_once_earlier_month_is_done():
+    july = {
+        "month": "2026-07",
+        "status": "finalized",
+        "game_dates": ["2026-07-06", "2026-07-13"],
+    }
+    august = {"month": "2026-08", "status": "finalized", "game_dates": ["2026-08-03"]}
+
+    assert current_month([july, august], today="2026-07-14")["month"] == "2026-08"
+
+
+def test_current_month_ignores_non_finalized_months():
+    open_month = {"month": "2026-07", "status": "open", "game_dates": ["2026-07-06"]}
+    finalized = {
+        "month": "2026-06",
+        "status": "finalized",
+        "game_dates": ["2026-06-29"],
+    }
+
+    assert (
+        current_month([open_month, finalized], today="2026-06-25")["month"] == "2026-06"
+    )
+
+
+def test_current_month_falls_back_to_most_recent_when_none_have_upcoming_dates():
+    july = {"month": "2026-07", "status": "finalized", "game_dates": ["2026-07-06"]}
+    august = {"month": "2026-08", "status": "open", "game_dates": ["2026-08-03"]}
+
+    # Both dates are in the past relative to "today"; no finalized month has
+    # an upcoming game, so fall back to whichever month is most recent.
+    assert current_month([july, august], today="2026-09-01")["month"] == "2026-08"
+
+
+def test_current_month_returns_none_for_empty_list():
+    assert current_month([]) is None

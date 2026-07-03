@@ -125,11 +125,36 @@ def test_skip_lifecycle():
     skip = db.get_skip(SCOPE, date_str, 801)
     assert skip["status"] == "open"
     assert skip["replacement_id"] is None
+    assert skip["vacated_by"] == 801
 
     db.set_skip_replaced(SCOPE, date_str, 801, 802)
     skip = db.get_skip(SCOPE, date_str, 801)
     assert skip["status"] == "replaced"
     assert skip["replacement_id"] == 802
+
+
+def test_reopen_skip_resets_status_and_records_who_vacated():
+    date_str = "2026-08-17"
+    db.add_skip(SCOPE, date_str, 811)
+    db.set_skip_replaced(SCOPE, date_str, 811, 812)
+
+    db.reopen_skip(SCOPE, date_str, 811, vacated_by=812)
+    skip = db.get_skip(SCOPE, date_str, 811)
+    assert skip["status"] == "open"
+    assert skip["replacement_id"] is None
+    assert skip["vacated_by"] == 812
+
+
+def test_get_occupied_skip_finds_current_replacement():
+    date_str = "2026-08-24"
+    db.add_skip(SCOPE, date_str, 821)
+    db.set_skip_replaced(SCOPE, date_str, 821, 822)
+
+    occupied = db.get_occupied_skip(SCOPE, date_str, 822)
+    assert occupied is not None
+    assert occupied["user_id"] == 821
+
+    assert db.get_occupied_skip(SCOPE, date_str, 823) is None
 
 
 def test_list_months_returns_all():

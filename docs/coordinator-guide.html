@@ -344,6 +344,15 @@
     <code>/addtowaitlist</code> for that date is immediately sent the same Accept/Decline offer, instead of
     just being queued behind nothing.
   </div>
+  <h3>A replacement backs out too</h3>
+  <p>
+    Whoever ends up confirmed to play — whether the original squad member or someone who took over their
+    spot — can run <code>/skip</code> themselves if they can no longer make it. The bot re-opens that
+    exact spot and offers it down the waitlist again, so this can chain through as many replacements as
+    needed. Payment always stays owed to the <em>original</em> squad member who first skipped (they're
+    the one who was actually charged at <code>/finalize</code>), no matter how many people the spot has
+    passed through since.
+  </p>
   <h3>Checking who's playing</h3>
   <table class="cmd-table">
     <tr><th>Command</th><th>What it shows</th></tr>

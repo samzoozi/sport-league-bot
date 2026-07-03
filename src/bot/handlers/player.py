@@ -243,14 +243,13 @@ async def addtowaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         ]
         if open_skips:
             earliest = min(open_skips, key=lambda s: s["created_at"])
-            skipper = db.get_player(scope, int(earliest["user_id"]))
             await offer_next(
                 context.bot,
                 scope,
                 update.effective_chat.id,
                 topic_thread_id(update),
                 next_date,
-                skipper,
+                int(earliest["user_id"]),
             )
             await update.effective_message.reply_text(
                 f"There's an open spot for {next_date} — check the offer above!"

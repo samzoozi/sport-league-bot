@@ -2,6 +2,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from bot import db
+from bot.services.attendance import attendees_for_date
 from bot.services.mentions import mention_text_and_entities
 from bot.services.months import current_month, next_game_date, split_cost
 from bot.services.permissions import require_group_setup
@@ -27,10 +28,6 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     month = month_meta["month"]
-    if not db.is_registered(scope, month, user.id):
-        await update.effective_message.reply_text(f"You're not in the {month} squad.")
-        return
-
     next_date = next_game_date(month_meta["game_dates"])
     if next_date is None:
         await update.effective_message.reply_text(
@@ -38,7 +35,14 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    if db.get_skip(scope, next_date, user.id) is not None:
+    if user.id not in attendees_for_date(scope, month, next_date):
+        await update.effective_message.reply_text(f"You're not playing {next_date}.")
+        return
+
+    if (
+        db.is_registered(scope, month, user.id)
+        and db.get_skip(scope, next_date, user.id) is not None
+    ):
         await update.effective_message.reply_text(
             f"You've already requested to skip {next_date}."
         )
@@ -74,41 +78,71 @@ async def skip_pick_callback(
         return
 
     month = month_meta["month"]
-    if not db.is_registered(scope, month, user.id):
-        await query.answer("You're not in the squad.", show_alert=True)
+    if user.id not in attendees_for_date(scope, month, date_str):
+        await query.answer("You're not playing this game.", show_alert=True)
         return
 
-    if db.get_skip(scope, date_str, user.id) is not None:
-        await query.answer("You've already skipped this game.")
-        return
+    if db.is_registered(scope, month, user.id):
+        if db.get_skip(scope, date_str, user.id) is not None:
+            await query.answer("You've already skipped this game.")
+            return
+        db.add_skip(scope, date_str, user.id)
+        owner_id = user.id
+    else:
+        occupied = db.get_occupied_skip(scope, date_str, user.id)
+        if occupied is None:
+            await query.answer("You're not playing this game.", show_alert=True)
+            return
+        owner_id = int(occupied["user_id"])
+        db.reopen_skip(scope, date_str, owner_id, vacated_by=user.id)
 
-    db.add_skip(scope, date_str, user.id)
     await query.edit_message_text(
         f"You're marked as skipping {date_str}. Looking for a replacement..."
     )
     await query.answer()
 
-    skipper = db.get_player(scope, user.id)
-    await offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper)
+    await offer_next(context.bot, scope, chat_id, thread_id, date_str, owner_id)
 
 
 async def offer_next(
-    bot, scope: str, chat_id: int, thread_id: int | None, date_str: str, skipper: dict
+    bot, scope: str, chat_id: int, thread_id: int | None, date_str: str, owner_id: int
 ) -> None:
+    # owner_id is always the original registrant's user_id — a spot's skip
+    # record is keyed by them for its whole lifetime, no matter how many
+    # times it's been vacated and re-filled. vacated_by tracks whoever most
+    # recently backed out, purely for the "can't play" announcement text.
+    skip = db.get_skip(scope, date_str, owner_id)
+    announcer = db.get_player(scope, int(skip["vacated_by"]))
+
     waitlist = db.list_waitlist(scope, date_str)
     if not waitlist:
         prefix = ""
         suffix = (
             f" can't play {date_str}. No one is on the waitlist — the spot is open."
         )
-        text, entities = mention_text_and_entities("❌ " + prefix, skipper, suffix)
+        text, entities = mention_text_and_entities("❌ " + prefix, announcer, suffix)
         await bot.send_message(
             chat_id, text, entities=entities, message_thread_id=thread_id
         )
         return
 
     candidate = db.get_player(scope, int(waitlist[0]["user_id"]))
-    prefix = f"❌ {skipper['name']} can't play {date_str}. "
+    await _send_offer(
+        bot, scope, chat_id, thread_id, date_str, owner_id, announcer, candidate
+    )
+
+
+async def _send_offer(
+    bot,
+    scope: str,
+    chat_id: int,
+    thread_id: int | None,
+    date_str: str,
+    owner_id: int,
+    announcer: dict,
+    candidate: dict,
+) -> None:
+    prefix = f"❌ {announcer['name']} can't play {date_str}. "
     suffix = ", you're up — want to play?"
     text, entities = mention_text_and_entities(prefix, candidate, suffix)
     keyboard = InlineKeyboardMarkup(
@@ -116,11 +150,11 @@ async def offer_next(
             [
                 InlineKeyboardButton(
                     "✅ Accept",
-                    callback_data=f"replace:accept:{date_str}:{skipper['user_id']}:{candidate['user_id']}",
+                    callback_data=f"replace:accept:{date_str}:{owner_id}:{candidate['user_id']}",
                 ),
                 InlineKeyboardButton(
                     "❌ Decline",
-                    callback_data=f"replace:decline:{date_str}:{skipper['user_id']}:{candidate['user_id']}",
+                    callback_data=f"replace:decline:{date_str}:{owner_id}:{candidate['user_id']}",
                 ),
             ]
         ]
@@ -162,8 +196,7 @@ async def replace_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         db.remove_waitlist_entry(scope, date_str, candidate_id)
         await query.edit_message_text(query.message.text + "\n\n(declined)")
         await query.answer()
-        skipper = db.get_player(scope, skipper_id)
-        await offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper)
+        await offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper_id)
         return
 
     db.remove_waitlist_entry(scope, date_str, candidate_id)

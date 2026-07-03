@@ -346,14 +346,24 @@ def add_skip(scope: str, date: str, user_id: int) -> None:
             "date": date,
             "status": "open",
             "replacement_id": None,
+            "vacated_by": user_id,
             "created_at": _now(),
         }
     )
 
 
+def _normalize_skip(item: dict | None) -> dict | None:
+    # vacated_by was added after some skip records already existed in
+    # production — default it to the record's own owner so reading an old
+    # row behaves exactly like it did before the field existed.
+    if item is not None:
+        item.setdefault("vacated_by", item["user_id"])
+    return item
+
+
 def get_skip(scope: str, date: str, user_id: int) -> dict | None:
     resp = table().get_item(Key={"PK": scope, "SK": skip_sk(date, user_id)})
-    return resp.get("Item")
+    return _normalize_skip(resp.get("Item"))
 
 
 def set_skip_replaced(
@@ -367,6 +377,27 @@ def set_skip_replaced(
     )
 
 
+def reopen_skip(scope: str, date: str, owner_id: int, vacated_by: int) -> None:
+    """Vacate a spot that's currently held (by the original registrant or a
+    replacement) so the offer chain can restart — used when whoever's
+    currently playing `date` backs out via /skip."""
+    table().update_item(
+        Key={"PK": scope, "SK": skip_sk(date, owner_id)},
+        UpdateExpression="SET #s = :open, replacement_id = :none, vacated_by = :v",
+        ExpressionAttributeNames={"#s": "status"},
+        ExpressionAttributeValues={":open": "open", ":none": None, ":v": vacated_by},
+    )
+
+
+def get_occupied_skip(scope: str, date: str, user_id: int) -> dict | None:
+    """Find the skip record whose spot `user_id` currently holds as a
+    replacement (not the original registrant) for `date`, if any."""
+    for skip in list_skips_for_date(scope, date):
+        if skip["status"] == "replaced" and int(skip["replacement_id"]) == user_id:
+            return skip
+    return None
+
+
 def list_skips_for_date(scope: str, date: str) -> list[dict]:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
@@ -375,7 +406,7 @@ def list_skips_for_date(scope: str, date: str) -> list[dict]:
             ":prefix": f"GAME#{date}#SKIP#",
         },
     )
-    return resp.get("Items", [])
+    return [_normalize_skip(item) for item in resp.get("Items", [])]
 
 
 def delete_month(scope: str, month: str) -> None:

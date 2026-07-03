@@ -41,3 +41,17 @@ def test_attendees_unaffected_on_a_different_date():
     db.add_skip(SCOPE, DATE, 2)
     other_date_attendees = attendees_for_date(SCOPE, MONTH, "2026-08-17")
     assert set(other_date_attendees) == {1, 2, 3}
+
+
+def test_attendees_excludes_slot_after_replacement_backs_out():
+    _setup_squad()
+    db.upsert_player(SCOPE, 4, "Waitlist Player", None, "p4@example.com")
+    db.add_skip(SCOPE, DATE, 2)
+    db.set_skip_replaced(SCOPE, DATE, 2, 4)
+
+    # Player 4 (the replacement) then backs out too — the spot goes back to
+    # unfilled, not back to player 2.
+    db.reopen_skip(SCOPE, DATE, 2, vacated_by=4)
+
+    attendees = attendees_for_date(SCOPE, MONTH, DATE)
+    assert set(attendees) == {1, 3}

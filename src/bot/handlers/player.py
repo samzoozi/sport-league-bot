@@ -24,6 +24,7 @@ HELP_MESSAGE = (
     "/squad — re-post the current month's signup card\n"
     "/skip — skip the next game (offers your spot to the waitlist)\n"
     "/waitlist — join the waitlist for the next game\n"
+    "/leavewaitlist — leave the waitlist for the next game\n"
     "/nextgame — who's playing in the next game\n"
     "/games — this month's game schedule\n\n"
     "Admin commands:\n"
@@ -222,6 +223,43 @@ async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
 
     await update.effective_message.reply_text(f"Added to the waitlist for {next_date}.")
+
+
+@require_group_setup
+async def leavewaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    scope = resolve_scope(update)
+    user = update.effective_user
+
+    if db.get_player(scope, user.id) is None:
+        await update.effective_message.reply_text(
+            "You haven't registered yet — run /register <email> [display name] first."
+        )
+        return
+
+    month_meta = current_month(db.list_months(scope))
+    if month_meta is None or month_meta["status"] != "finalized":
+        await update.effective_message.reply_text(
+            "Waitlist requests only apply once a month has been finalized."
+        )
+        return
+
+    next_date = next_game_date(month_meta["game_dates"])
+    if next_date is None:
+        await update.effective_message.reply_text(
+            f"No more games scheduled for {month_meta['month']}."
+        )
+        return
+
+    if not any(w["user_id"] == user.id for w in db.list_waitlist(scope, next_date)):
+        await update.effective_message.reply_text(
+            f"You're not on the waitlist for {next_date}."
+        )
+        return
+
+    db.remove_waitlist_entry(scope, next_date, user.id)
+    await update.effective_message.reply_text(
+        f"Removed from the waitlist for {next_date}."
+    )
 
 
 @require_group_setup

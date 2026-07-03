@@ -1,0 +1,21 @@
+[project]
+name = "lambda-handler"
+version = "0.1.0"
+description = "AWS Lambda webhook entry point for the Hangar Sport Bot"
+requires-python = ">=3.13"
+dependencies = [
+    "sport-league-bot",
+    "boto3>=1.43.39",
+    "python-dotenv>=1.2.2",
+    "python-telegram-bot>=22",
+]
+
+[tool.uv.sources]
+sport-league-bot = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = ["lambda_function.py"]

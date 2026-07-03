@@ -6,6 +6,12 @@ resolution-markers = [
     "python_full_version < '3.14'",
 ]
 
+[manifest]
+members = [
+    "lambda-handler",
+    "sport-league-bot",
+]
+
 [[package]]
 name = "anyio"
 version = "4.14.1"
@@ -429,6 +435,25 @@ wheels = [
 ]
 
 [[package]]
+name = "lambda-handler"
+version = "0.1.0"
+source = { editable = "packages/lambda_handler" }
+dependencies = [
+    { name = "boto3" },
+    { name = "python-dotenv" },
+    { name = "python-telegram-bot" },
+    { name = "sport-league-bot" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "boto3", specifier = ">=1.43.39" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "python-telegram-bot", specifier = ">=22" },
+    { name = "sport-league-bot", editable = "." },
+]
+
+[[package]]
 name = "markupsafe"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -766,7 +791,7 @@ wheels = [
 [[package]]
 name = "sport-league-bot"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "python-dotenv" },

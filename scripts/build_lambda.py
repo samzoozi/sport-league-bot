@@ -41,6 +41,15 @@ def main() -> None:
             "--no-dev",
             "--no-editable",
             "--compile-bytecode",
+            # uv's build cache can otherwise serve a stale wheel for these two
+            # local workspace packages even after their source changed on
+            # disk — force both to rebuild fresh every time. Third-party pins
+            # (boto3, python-telegram-bot, ...) are untouched and safe to
+            # reuse from cache.
+            "--reinstall-package",
+            "sport-league-bot",
+            "--reinstall-package",
+            "lambda-handler",
         ],
         check=True,
         cwd=ROOT,

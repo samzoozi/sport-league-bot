@@ -67,7 +67,7 @@ def current_month(months: list[dict], today: str | None = None) -> dict | None:
 
     Multiple months can legitimately coexist — e.g. a coordinator finalizes
     next month's squad while this month's games are still being played. The
-    month that matters for /nextgame, /skip, /waitlist, and /games is
+    month that matters for /nextgame, /skip, /waitlist/addtowaitlist, and /games is
     whichever finalized month has the earliest still-upcoming game date, not
     whichever month was created most recently. If no finalized month has any
     upcoming date left, fall back to the most recently created month overall

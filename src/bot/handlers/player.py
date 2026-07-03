@@ -23,7 +23,8 @@ HELP_MESSAGE = (
     "/balance — your balance and recent transactions\n"
     "/squad — re-post the current month's signup card\n"
     "/skip — skip the next game (offers your spot to the waitlist)\n"
-    "/waitlist — join the waitlist for the next game\n"
+    "/waitlist — show who's on the waitlist for the next game\n"
+    "/addtowaitlist — join the waitlist for the next game\n"
     "/leavewaitlist — leave the waitlist for the next game\n"
     "/nextgame — who's playing in the next game\n"
     "/games — this month's game schedule\n\n"
@@ -161,6 +162,40 @@ async def squad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @require_group_setup
 async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    scope = resolve_scope(update)
+    month_meta = current_month(db.list_months(scope))
+    if month_meta is None or month_meta["status"] != "finalized":
+        await update.effective_message.reply_text(
+            "Waitlist requests only apply once a month has been finalized."
+        )
+        return
+
+    next_date = next_game_date(month_meta["game_dates"])
+    if next_date is None:
+        await update.effective_message.reply_text(
+            f"No more games scheduled for {month_meta['month']}."
+        )
+        return
+
+    entries = db.list_waitlist(scope, next_date)
+    if not entries:
+        await update.effective_message.reply_text(
+            f"No one is on the waitlist for {next_date}."
+        )
+        return
+
+    players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
+    names = [
+        players_by_id.get(int(e["user_id"]), {}).get("name", f"user {e['user_id']}")
+        for e in entries
+    ]
+    lines = [f"Waitlist for {next_date}:"]
+    lines += [f"{i}. {name}" for i, name in enumerate(names, 1)]
+    await update.effective_message.reply_text("\n".join(lines))
+
+
+@require_group_setup
+async def addtowaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
     user = update.effective_user
 

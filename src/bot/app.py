@@ -15,7 +15,8 @@ PLAYER_COMMANDS = [
     BotCommand("balance", "Show your balance and recent transactions"),
     BotCommand("squad", "Re-post the current month's signup card"),
     BotCommand("skip", "Skip the next game and offer your spot to the waitlist"),
-    BotCommand("waitlist", "Join the waitlist for the next game"),
+    BotCommand("waitlist", "Show who's on the waitlist for the next game"),
+    BotCommand("addtowaitlist", "Join the waitlist for the next game"),
     BotCommand("leavewaitlist", "Leave the waitlist for the next game"),
     BotCommand("nextgame", "Who's playing in the next game"),
     BotCommand("games", "This month's game schedule"),
@@ -71,6 +72,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("balance", player.balance))
     application.add_handler(CommandHandler("squad", player.squad))
     application.add_handler(CommandHandler("waitlist", player.waitlist))
+    application.add_handler(CommandHandler("addtowaitlist", player.addtowaitlist))
     application.add_handler(CommandHandler("leavewaitlist", player.leavewaitlist))
     application.add_handler(CommandHandler("skip", skips.skip_cmd))
     application.add_handler(CommandHandler("nextgame", player.nextgame))

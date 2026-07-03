@@ -88,7 +88,18 @@ cd infra && cdk deploy
 PYTHONPATH=src uv run python scripts/set_webhook.py <function-url-from-deploy-output>
 ```
 
-`set_webhook.py` registers the deployed Function URL with Telegram and pushes the `/` command menus. Telegram only delivers updates via one mechanism at a time — once a webhook is registered, local long polling (`bot.local`) will start throwing `Conflict` errors (expected; it means the webhook took over). To go back to local dev, delete the webhook first: `curl https://api.telegram.org/bot<token>/deleteWebhook`.
+`set_webhook.py` registers the deployed Function URL with Telegram and pushes the `/` command menus. Telegram only delivers updates via one mechanism at a time — once a webhook is registered, local long polling (`bot.local`) will start throwing `Conflict` errors (expected; it means the webhook took over).
+
+### Switching between local dev and production
+
+Since only one delivery mechanism can be active, swap between them with:
+
+```bash
+./scripts/go_local.sh   # deletes the webhook, starts bot.local (dev table, foreground — Ctrl+C to stop)
+./scripts/go_prod.sh    # stops bot.local, re-registers the webhook against the deployed Lambda (prod table)
+```
+
+`go_local.sh` takes production offline until `go_prod.sh` is run again — local and prod use separate DynamoDB tables (`hangar-sport-bot-dev` vs `hangar-sport-bot`), so nothing you do locally touches real league data either way.
 
 ## Project docs
 

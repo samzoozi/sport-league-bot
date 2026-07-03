@@ -39,8 +39,9 @@ Every item's partition key is a "scope" string: `GROUP#<chat_id>`, or `GROUP#<ch
 
 - `META` — group settings (weekday, title)
 - `PLAYER#<user_id>#PROFILE` / `PLAYER#<user_id>#TXN#<ts>` — player profile and ledger entries
-- `MONTH#<month>#META` / `MONTH#<month>#REG#<user_id>` / `MONTH#<month>#WL#<ts>#<user_id>` — a month's squad and waitlist (FIFO via timestamp-ordered SK)
+- `MONTH#<month>#META` / `MONTH#<month>#REG#<user_id>` — a month's squad
 - `GAME#<date>#SKIP#<user_id>` — a per-game skip record, with `status` (`open`/`replaced`) and `replacement_id`
+- `GAME#<date>#WL#<ts>#<user_id>` — waitlist entry for one specific game date (FIFO via timestamp-ordered SK) — see "Signup, skip, and waitlist rules" below for why this is per-date, not per-month
 
 All key-building and queries live in `src/bot/db.py` — that's the only file that should construct PK/SK strings directly.
 
@@ -56,6 +57,14 @@ Replies (`update.effective_message.reply_text(...)`) auto-thread into the correc
 
 1. **DynamoDB returns numbers as `Decimal`.** Anything read back from the table (e.g. `signup_message_id`) must be cast to `int`/whatever the Telegram API expects before being passed to a `python-telegram-bot` call — `Decimal` isn't JSON-serializable and `edit_message_text(message_id=...)` will fail with a `NetworkError`. `db._normalize_month` handles this for month records; follow that pattern for any new numeric field read out of an item.
 2. **`table().meta.client` is not a plain low-level client.** It has the resource layer's auto-serialization hooks attached, so passing it already-typed `{"N": "..."}` values (as `db.add_transaction`'s `transact_write_items` call does) double-wraps them into a `MAP` and DynamoDB rejects the request. Use `db._client()` (a real `boto3.client("dynamodb")`) for any low-level/typed call instead.
+
+### Signup, skip, and waitlist rules
+
+These aren't arbitrary — they're explicit product decisions, not something to "simplify" back to the obvious generic design:
+
+- **Pre-finalize (open signup):** only Join / Decline. No self-serve waitlist during signup — `/finalize` is the only capacity enforcement, sorting registrations by join time and dropping anyone past `MAX_PLAYERS` (no waitlist placement for them either — they're just removed).
+- **Post-finalize:** `/waitlist` and `/skip` both only ever apply to the **next match** — the earliest game date in the month that hasn't happened yet (`services/months.next_game_date`). There's no "waitlist for the whole month" or "skip any future date" — a player waitlisted for one date isn't automatically in line for a later one, and rolls over to the following date for free the day after a match happens (since `next_game_date` just filters `game_date >= today`, no explicit rollover step needed).
+- This is why the waitlist DynamoDB key (`GAME#<date>#WL#...`) mirrors the skip key (`GAME#<date>#SKIP#...`) rather than being month-scoped — both are inherently per-game concepts now.
 
 ### Permissions and gating (`src/bot/services/permissions.py`)
 

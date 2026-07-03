@@ -1,11 +1,9 @@
-from datetime import date
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from bot import db
 from bot.services.mentions import mention_text_and_entities
-from bot.services.months import split_cost
+from bot.services.months import next_game_date, split_cost
 from bot.services.permissions import require_group_setup
 from bot.services.scope import resolve_scope, topic_thread_id
 
@@ -33,20 +31,30 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text(f"You're not in the {month} squad.")
         return
 
-    today = date.today().isoformat()
-    upcoming = [d for d in month_meta["game_dates"] if d >= today]
-    available = [d for d in upcoming if db.get_skip(scope, d, user.id) is None]
-    if not available:
+    next_date = next_game_date(month_meta["game_dates"])
+    if next_date is None:
         await update.effective_message.reply_text(
-            "No upcoming games to skip (or you've already skipped them all)."
+            f"No more games scheduled for {month}."
+        )
+        return
+
+    if db.get_skip(scope, next_date, user.id) is not None:
+        await update.effective_message.reply_text(
+            f"You've already requested to skip {next_date}."
         )
         return
 
     keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(d, callback_data=f"skip:pick:{d}")] for d in available]
+        [
+            [
+                InlineKeyboardButton(
+                    f"Confirm skip {next_date}", callback_data=f"skip:pick:{next_date}"
+                )
+            ]
+        ]
     )
     await update.effective_message.reply_text(
-        "Which game do you want to skip?", reply_markup=keyboard
+        f"Skip the next match ({next_date})?", reply_markup=keyboard
     )
 
 
@@ -81,19 +89,13 @@ async def skip_pick_callback(
     await query.answer()
 
     skipper = db.get_player(scope, user.id)
-    await _offer_next(context.bot, scope, chat_id, thread_id, month, date_str, skipper)
+    await _offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper)
 
 
 async def _offer_next(
-    bot,
-    scope: str,
-    chat_id: int,
-    thread_id: int | None,
-    month: str,
-    date_str: str,
-    skipper: dict,
+    bot, scope: str, chat_id: int, thread_id: int | None, date_str: str, skipper: dict
 ) -> None:
-    waitlist = db.list_waitlist(scope, month)
+    waitlist = db.list_waitlist(scope, date_str)
     if not waitlist:
         prefix = ""
         suffix = (
@@ -150,7 +152,6 @@ async def replace_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if month_meta is None:
         await query.answer("This offer is no longer valid.", show_alert=True)
         return
-    month = month_meta["month"]
 
     skip = db.get_skip(scope, date_str, skipper_id)
     if skip is None or skip["status"] != "open":
@@ -158,16 +159,14 @@ async def replace_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if action == "decline":
-        db.remove_waitlist_entry(scope, month, candidate_id)
+        db.remove_waitlist_entry(scope, date_str, candidate_id)
         await query.edit_message_text(query.message.text + "\n\n(declined)")
         await query.answer()
         skipper = db.get_player(scope, skipper_id)
-        await _offer_next(
-            context.bot, scope, chat_id, thread_id, month, date_str, skipper
-        )
+        await _offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper)
         return
 
-    db.remove_waitlist_entry(scope, month, candidate_id)
+    db.remove_waitlist_entry(scope, date_str, candidate_id)
     db.set_skip_replaced(scope, date_str, skipper_id, candidate_id)
 
     skipper = db.get_player(scope, skipper_id)

@@ -52,3 +52,11 @@ def split_cost(total_cost, count: int) -> Decimal:
     return (Decimal(str(total_cost)) / count).quantize(
         Decimal("0.01"), rounding=ROUND_DOWN
     )
+
+
+def next_game_date(game_dates: list[str], today: str | None = None) -> str | None:
+    """The earliest date in game_dates that hasn't happened yet, or None if
+    every date in the list is in the past."""
+    today = today or date.today().isoformat()
+    upcoming = [d for d in game_dates if d >= today]
+    return upcoming[0] if upcoming else None

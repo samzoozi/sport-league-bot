@@ -17,14 +17,12 @@ def _names(user_ids: list[int], players_by_id: dict[int, dict]) -> list[str]:
 def signup_card(
     month_meta: dict,
     registered_ids: list[int],
-    waitlist_ids: list[int],
     players_by_id: dict[int, dict],
 ) -> tuple[str, InlineKeyboardMarkup]:
     month = month_meta["month"]
     dates = ", ".join(month_meta["game_dates"])
     total_cost = month_meta["total_cost"]
     squad_names = _names(registered_ids, players_by_id)
-    waitlist_names = _names(waitlist_ids, players_by_id)
 
     per_player = total_cost / len(registered_ids) if registered_ids else None
     cost_line = f"Total cost: ${total_cost}"
@@ -39,18 +37,15 @@ def signup_card(
         f"Squad ({len(squad_names)}/{MAX_PLAYERS}):",
     ]
     lines += [f"{i}. {name}" for i, name in enumerate(squad_names, 1)] or ["(empty)"]
-    lines += ["", f"Waitlist ({len(waitlist_names)}):"]
-    lines += [f"{i}. {name}" for i, name in enumerate(waitlist_names, 1)] or ["(empty)"]
-    lines += ["", "Tap a button below to join, waitlist, or leave."]
+    lines += ["", "Tap a button below to join or decline."]
 
     keyboard = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton("✅ Join", callback_data=f"signup:join:{month}"),
                 InlineKeyboardButton(
-                    "⏳ Waitlist", callback_data=f"signup:waitlist:{month}"
+                    "❌ Decline", callback_data=f"signup:leave:{month}"
                 ),
-                InlineKeyboardButton("❌ Leave", callback_data=f"signup:leave:{month}"),
             ]
         ]
     )

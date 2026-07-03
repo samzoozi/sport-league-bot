@@ -14,15 +14,15 @@ PLAYER_COMMANDS = [
     BotCommand("emails", "List everyone's e-transfer email"),
     BotCommand("balance", "Show your balance and recent transactions"),
     BotCommand("squad", "Re-post the current month's signup card"),
-    BotCommand("skip", "Skip an upcoming game and offer your spot to the waitlist"),
-    BotCommand("waitlist", "Join the waitlist for the current month"),
+    BotCommand("skip", "Skip the next game and offer your spot to the waitlist"),
+    BotCommand("waitlist", "Join the waitlist for the next game"),
     BotCommand("nextgame", "Who's playing in the next game"),
     BotCommand("games", "This month's game schedule"),
     BotCommand("help", "Show available commands"),
 ]
 
 ADMIN_COMMANDS = PLAYER_COMMANDS + [
-    BotCommand("setupgroup", "One-time setup: /setupgroup <weekday>"),
+    BotCommand("setupgroup", "One-time setup — tap a weekday"),
     BotCommand("newmonth", "Open signups: /newmonth <YYYY-MM> <total_cost>"),
     BotCommand(
         "deletemonth", "Delete an open (non-finalized) month: /deletemonth <YYYY-MM>"
@@ -77,6 +77,9 @@ def build_application() -> Application:
     )
     application.add_handler(
         CallbackQueryHandler(skips.replace_callback, pattern=r"^replace:")
+    )
+    application.add_handler(
+        CallbackQueryHandler(setup.setupgroup_callback, pattern=r"^setupgroup:")
     )
 
     return application

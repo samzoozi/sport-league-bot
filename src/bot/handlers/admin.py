@@ -70,7 +70,7 @@ async def newmonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     db.create_month(scope, month_key, weekday, game_dates, total_cost)
 
-    text, keyboard = signup_card(db.get_month(scope, month_key), [], [], {})
+    text, keyboard = signup_card(db.get_month(scope, month_key), [], {})
     message = await update.effective_message.reply_text(text, reply_markup=keyboard)
     db.set_month_signup_message(scope, month_key, message.message_id)
 
@@ -189,15 +189,12 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
 
     month = month_meta["month"]
-    registrations = sorted(
-        db.list_registrations(scope, month), key=lambda r: r["joined_at"]
-    )
+    registrations = db.list_registrations(scope, month)  # already join-ordered
 
     overflow = registrations[max_players:]
     registrations = registrations[:max_players]
     for r in overflow:
         db.remove_registration(scope, month, r["user_id"])
-        db.add_waitlist(scope, month, r["user_id"])
 
     if not registrations:
         await update.effective_message.reply_text(
@@ -224,7 +221,7 @@ async def finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     if overflow:
         lines.append(
-            f"{len(overflow)} moved to the waitlist (squad capped at {max_players})."
+            f"{len(overflow)} couldn't be fit and were removed (squad capped at {max_players})."
         )
     await update.effective_message.reply_text("\n".join(lines))
     await refresh_signup_message(context.bot, scope, chat_id, month)

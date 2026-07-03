@@ -71,25 +71,50 @@ def test_registration_add_remove_list():
     assert db.is_registered(SCOPE, month, 501) is False
 
 
-def test_waitlist_is_fifo_ordered():
-    month = "2026-09"
-    db.add_waitlist(SCOPE, month, 601)
-    db.add_waitlist(SCOPE, month, 602)
-    db.add_waitlist(SCOPE, month, 603)
+def test_list_registrations_is_join_ordered_not_by_user_id():
+    month = "2026-12"
+    # 999 joins first, then 100 — a user_id-sorted (SK-order) bug would put
+    # 100 first since "100" < "999" lexicographically; join order should not.
+    db.add_registration(SCOPE, month, 999, added_by="self")
+    db.add_registration(SCOPE, month, 100, added_by="self")
 
-    waitlist = db.list_waitlist(SCOPE, month)
+    assert [r["user_id"] for r in db.list_registrations(SCOPE, month)] == [999, 100]
+
+    # Leaving and rejoining should move them to the back of the line, not
+    # back to whatever position their user_id would otherwise sort into.
+    db.remove_registration(SCOPE, month, 999)
+    db.add_registration(SCOPE, month, 999, added_by="self")
+
+    assert [r["user_id"] for r in db.list_registrations(SCOPE, month)] == [100, 999]
+
+
+def test_waitlist_is_fifo_ordered():
+    game_date = "2026-09-07"
+    db.add_waitlist(SCOPE, game_date, 601)
+    db.add_waitlist(SCOPE, game_date, 602)
+    db.add_waitlist(SCOPE, game_date, 603)
+
+    waitlist = db.list_waitlist(SCOPE, game_date)
     ordered_ids = [w["user_id"] for w in waitlist]
     assert ordered_ids == [601, 602, 603]
 
 
 def test_waitlist_remove_entry():
-    month = "2026-09"
-    db.add_waitlist(SCOPE, month, 701)
-    db.add_waitlist(SCOPE, month, 702)
+    game_date = "2026-09-07"
+    db.add_waitlist(SCOPE, game_date, 701)
+    db.add_waitlist(SCOPE, game_date, 702)
 
-    db.remove_waitlist_entry(SCOPE, month, 701)
-    remaining_ids = [w["user_id"] for w in db.list_waitlist(SCOPE, month)]
+    db.remove_waitlist_entry(SCOPE, game_date, 701)
+    remaining_ids = [w["user_id"] for w in db.list_waitlist(SCOPE, game_date)]
     assert remaining_ids == [702]
+
+
+def test_waitlist_is_scoped_to_game_date_not_month():
+    db.add_waitlist(SCOPE, "2026-09-07", 801)
+    db.add_waitlist(SCOPE, "2026-09-14", 802)
+
+    assert [w["user_id"] for w in db.list_waitlist(SCOPE, "2026-09-07")] == [801]
+    assert [w["user_id"] for w in db.list_waitlist(SCOPE, "2026-09-14")] == [802]
 
 
 def test_skip_lifecycle():
@@ -122,14 +147,12 @@ def test_get_open_month_ignores_finalized():
     assert db.get_open_month(SCOPE) is None
 
 
-def test_delete_month_removes_meta_registrations_and_waitlist():
+def test_delete_month_removes_meta_and_registrations():
     month = "2026-11"
     db.create_month(SCOPE, month, "Monday", ["2026-11-02"], 100)
     db.add_registration(SCOPE, month, 901, added_by="self")
-    db.add_waitlist(SCOPE, month, 902)
 
     db.delete_month(SCOPE, month)
 
     assert db.get_month(SCOPE, month) is None
     assert db.list_registrations(SCOPE, month) == []
-    assert db.list_waitlist(SCOPE, month) == []

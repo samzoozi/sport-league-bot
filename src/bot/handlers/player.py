@@ -1,13 +1,12 @@
 import re
-from datetime import date
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from bot import db
-from bot.handlers.signup import refresh_signup_message
 from bot.services.attendance import attendees_for_date
 from bot.services.cards import game_card, signup_card
+from bot.services.months import next_game_date
 from bot.services.permissions import require_group_setup
 from bot.services.scope import resolve_scope
 
@@ -21,12 +20,12 @@ HELP_MESSAGE = (
     "/emails — list everyone's e-transfer email\n"
     "/balance — your balance and recent transactions\n"
     "/squad — re-post the current month's signup card\n"
-    "/skip — skip an upcoming game (offers your spot to the waitlist)\n"
-    "/waitlist — join the waitlist for the current month\n"
+    "/skip — skip the next game (offers your spot to the waitlist)\n"
+    "/waitlist — join the waitlist for the next game\n"
     "/nextgame — who's playing in the next game\n"
     "/games — this month's game schedule\n\n"
     "Admin commands:\n"
-    "/setupgroup <weekday> — one-time setup\n"
+    "/setupgroup — one-time setup, tap a weekday (or /setupgroup <weekday> to skip the buttons)\n"
     "/newmonth <YYYY-MM> <total_cost> [skip-dates...] — open signups for a month "
     "(e.g. /newmonth 2026-08 240 2026-08-03)\n"
     "/deletemonth <YYYY-MM> — delete an open (non-finalized) month\n"
@@ -152,17 +151,15 @@ async def squad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     month = month_meta["month"]
     registered = [r["user_id"] for r in db.list_registrations(scope, month)]
-    waitlist = [w["user_id"] for w in db.list_waitlist(scope, month)]
     players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
 
-    text, keyboard = signup_card(month_meta, registered, waitlist, players_by_id)
+    text, keyboard = signup_card(month_meta, registered, players_by_id)
     message = await update.effective_message.reply_text(text, reply_markup=keyboard)
     db.set_month_signup_message(scope, month, message.message_id)
 
 
 @require_group_setup
 async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    chat_id = update.effective_chat.id
     scope = resolve_scope(update)
     user = update.effective_user
 
@@ -173,8 +170,17 @@ async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     month_meta = db.get_latest_month(scope)
-    if month_meta is None:
-        await update.effective_message.reply_text("No active month right now.")
+    if month_meta is None or month_meta["status"] != "finalized":
+        await update.effective_message.reply_text(
+            "Waitlist requests only apply once a month has been finalized."
+        )
+        return
+
+    next_date = next_game_date(month_meta["game_dates"])
+    if next_date is None:
+        await update.effective_message.reply_text(
+            f"No more games scheduled for {month_meta['month']}."
+        )
         return
 
     month = month_meta["month"]
@@ -182,15 +188,14 @@ async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("You're already in the squad.")
         return
 
-    if any(w["user_id"] == user.id for w in db.list_waitlist(scope, month)):
-        await update.effective_message.reply_text("You're already on the waitlist.")
+    if any(w["user_id"] == user.id for w in db.list_waitlist(scope, next_date)):
+        await update.effective_message.reply_text(
+            f"You're already on the waitlist for {next_date}."
+        )
         return
 
-    db.add_waitlist(scope, month, user.id)
-    await update.effective_message.reply_text(f"Added to the waitlist for {month}.")
-
-    if month_meta["status"] == "open":
-        await refresh_signup_message(context.bot, scope, chat_id, month)
+    db.add_waitlist(scope, next_date, user.id)
+    await update.effective_message.reply_text(f"Added to the waitlist for {next_date}.")
 
 
 @require_group_setup
@@ -201,15 +206,13 @@ async def nextgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text("No finalized squad right now.")
         return
 
-    today = date.today().isoformat()
-    upcoming = [d for d in month_meta["game_dates"] if d >= today]
-    if not upcoming:
+    next_date = next_game_date(month_meta["game_dates"])
+    if next_date is None:
         await update.effective_message.reply_text(
             f"No more games scheduled for {month_meta['month']}."
         )
         return
 
-    next_date = upcoming[0]
     attendee_ids = attendees_for_date(scope, month_meta["month"], next_date)
     players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
     names = [

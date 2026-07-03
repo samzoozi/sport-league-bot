@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from bot.services.months import (
     game_dates_for_month,
+    next_game_date,
     parse_month,
     parse_weekday,
     split_cost,
@@ -81,3 +82,25 @@ def test_split_cost_exact_division():
 
 def test_split_cost_accepts_non_decimal_input():
     assert split_cost(130, 3) == Decimal("43.33")
+
+
+def test_next_game_date_picks_earliest_upcoming():
+    dates = ["2026-08-03", "2026-08-10", "2026-08-17"]
+    assert next_game_date(dates, today="2026-08-05") == "2026-08-10"
+
+
+def test_next_game_date_today_counts_as_upcoming():
+    dates = ["2026-08-03", "2026-08-10"]
+    assert next_game_date(dates, today="2026-08-10") == "2026-08-10"
+
+
+def test_next_game_date_rolls_over_the_day_after():
+    # The day after the first date, it should no longer be "next" — the
+    # second date takes over automatically, with no special rollover logic.
+    dates = ["2026-08-03", "2026-08-10"]
+    assert next_game_date(dates, today="2026-08-04") == "2026-08-10"
+
+
+def test_next_game_date_none_when_all_dates_passed():
+    dates = ["2026-08-03", "2026-08-10"]
+    assert next_game_date(dates, today="2026-08-11") is None

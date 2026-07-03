@@ -48,8 +48,8 @@ def registration_sk(month: str, user_id: int) -> str:
     return f"MONTH#{month}#REG#{user_id}"
 
 
-def waitlist_sk(month: str, user_id: int, ts: str | None = None) -> str:
-    return f"MONTH#{month}#WL#{ts or _now()}#{user_id}"
+def waitlist_sk(date: str, user_id: int, ts: str | None = None) -> str:
+    return f"GAME#{date}#WL#{ts or _now()}#{user_id}"
 
 
 def skip_sk(date: str, user_id: int) -> str:
@@ -250,14 +250,17 @@ def list_registrations(scope: str, month: str) -> list[dict]:
             ":prefix": f"MONTH#{month}#REG#",
         },
     )
-    return resp.get("Items", [])
+    # The SK sorts by user_id, not join time — always re-sort by joined_at so
+    # callers see true join order (e.g. leaving and rejoining moves someone
+    # to the back of the line, not back to their user_id's fixed rank).
+    return sorted(resp.get("Items", []), key=lambda r: r["joined_at"])
 
 
-def add_waitlist(scope: str, month: str, user_id: int) -> None:
+def add_waitlist(scope: str, date: str, user_id: int) -> None:
     table().put_item(
         Item={
             "PK": scope,
-            "SK": waitlist_sk(month, user_id),
+            "SK": waitlist_sk(date, user_id),
             "item_type": "WAITLIST",
             "user_id": user_id,
             "joined_at": _now(),
@@ -265,18 +268,18 @@ def add_waitlist(scope: str, month: str, user_id: int) -> None:
     )
 
 
-def remove_waitlist_entry(scope: str, month: str, user_id: int) -> None:
-    for entry in list_waitlist(scope, month):
+def remove_waitlist_entry(scope: str, date: str, user_id: int) -> None:
+    for entry in list_waitlist(scope, date):
         if entry["user_id"] == user_id:
             table().delete_item(Key={"PK": scope, "SK": entry["SK"]})
 
 
-def list_waitlist(scope: str, month: str) -> list[dict]:
+def list_waitlist(scope: str, date: str) -> list[dict]:
     resp = table().query(
         KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
         ExpressionAttributeValues={
             ":pk": scope,
-            ":prefix": f"MONTH#{month}#WL#",
+            ":prefix": f"GAME#{date}#WL#",
         },
     )
     return resp.get("Items", [])
@@ -379,8 +382,9 @@ def list_skips_for_date(scope: str, date: str) -> list[dict]:
 
 
 def delete_month(scope: str, month: str) -> None:
+    # Only ever called on an open (non-finalized) month, which can't have any
+    # per-game waitlist entries yet (those only exist post-finalize) — so
+    # there's nothing waitlist-related to clean up here.
     table().delete_item(Key={"PK": scope, "SK": month_meta_sk(month)})
     for r in list_registrations(scope, month):
         table().delete_item(Key={"PK": scope, "SK": r["SK"]})
-    for w in list_waitlist(scope, month):
-        table().delete_item(Key={"PK": scope, "SK": w["SK"]})

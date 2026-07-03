@@ -2,7 +2,6 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from bot import db
-from bot.config import MAX_PLAYERS
 from bot.services.cards import signup_card
 from bot.services.scope import resolve_scope
 
@@ -13,10 +12,9 @@ async def refresh_signup_message(bot, scope: str, chat_id: int, month: str) -> N
         return
 
     registered = [r["user_id"] for r in db.list_registrations(scope, month)]
-    waitlist = [w["user_id"] for w in db.list_waitlist(scope, month)]
     players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
 
-    text, keyboard = signup_card(month_meta, registered, waitlist, players_by_id)
+    text, keyboard = signup_card(month_meta, registered, players_by_id)
     await bot.edit_message_text(
         chat_id=chat_id,
         message_id=month_meta["signup_message_id"],
@@ -47,37 +45,11 @@ async def signup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if in_squad:
             await query.answer("You're already in the squad.")
         else:
-            db.remove_waitlist_entry(scope, month, user.id)
-            squad_size = len(db.list_registrations(scope, month))
-            if squad_size >= MAX_PLAYERS:
-                db.add_waitlist(scope, month, user.id)
-                await query.answer("Squad is full — added you to the waitlist instead.")
-            else:
-                db.add_registration(scope, month, user.id, added_by="self")
-                await query.answer("You're in!")
-
-    elif action == "waitlist":
-        if in_squad:
-            await query.answer(
-                "You're already in the squad — use Leave if you want to give up your spot."
-            )
-        elif any(w["user_id"] == user.id for w in db.list_waitlist(scope, month)):
-            await query.answer("You're already on the waitlist.")
-        else:
-            db.add_waitlist(scope, month, user.id)
-            await query.answer("Added to the waitlist.")
+            db.add_registration(scope, month, user.id, added_by="self")
+            await query.answer("You're in!")
 
     elif action == "leave":
-        was_full = len(db.list_registrations(scope, month)) >= MAX_PLAYERS
         db.remove_registration(scope, month, user.id)
-        db.remove_waitlist_entry(scope, month, user.id)
         await query.answer("You've been removed.")
-
-        if in_squad and was_full:
-            next_up = db.list_waitlist(scope, month)
-            if next_up:
-                promoted_id = next_up[0]["user_id"]
-                db.remove_waitlist_entry(scope, month, promoted_id)
-                db.add_registration(scope, month, promoted_id, added_by="self")
 
     await refresh_signup_message(context.bot, scope, chat_id, month)

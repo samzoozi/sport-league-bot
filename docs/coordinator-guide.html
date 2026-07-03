@@ -336,6 +336,12 @@
     <li>If they decline (or nobody was waiting), the bot either offers the spot to the next person in
       line or announces that the spot is open with nobody to fill it.</li>
   </ol>
+  <div class="card tip">
+    <strong>An open spot isn't lost</strong>
+    If the waitlist ran dry and the spot stayed open, it's not gone — the next person to run
+    <code>/waitlist</code> for that date is immediately sent the same Accept/Decline offer, instead of
+    just being queued behind nothing.
+  </div>
   <h3>Checking who's playing</h3>
   <table class="cmd-table">
     <tr><th>Command</th><th>What it shows</th></tr>
@@ -379,7 +385,7 @@
     <tr><td><code>/emails</code></td><td>Lists everyone's e-transfer email, for paying each other directly.</td></tr>
     <tr><td><code>/balance</code></td><td>Shows their own balance and recent transactions.</td></tr>
     <tr><td><code>/skip</code></td><td>Skips the next game and confirms with a button — the bot automatically offers the spot to the waitlist (only works once that month is finalized).</td></tr>
-    <tr><td><code>/waitlist</code></td><td>Joins the waitlist for the next game (only works once that month is finalized).</td></tr>
+    <tr><td><code>/waitlist</code></td><td>Joins the waitlist for the next game (only works once that month is finalized) — if a spot is already open and unfilled, they're offered it immediately instead of being queued.</td></tr>
     <tr><td><code>/help</code></td><td>Shows the full command list, split into player and admin sections.</td></tr>
   </table>
   <div class="card tip">

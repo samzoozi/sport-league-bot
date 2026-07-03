@@ -71,7 +71,26 @@ uv run ruff format
 
 A pre-commit hook (`.pre-commit-config.yaml`) runs `ruff check` and `ruff format --check` automatically on every commit.
 
+## Deploying (AWS Lambda, webhook mode)
+
+Infrastructure is defined with [AWS CDK](https://docs.aws.amazon.com/cdk/) (Python) under `infra/`. One-time setup:
+
+```bash
+npm install -g aws-cdk
+cd infra && cdk bootstrap aws://<account-id>/<region>
+```
+
+Then, for every deploy:
+
+```bash
+uv run python scripts/build_lambda.py     # bundles dependencies into infra/lambda_build/, no Docker needed
+cd infra && cdk deploy
+PYTHONPATH=src uv run python scripts/set_webhook.py <function-url-from-deploy-output>
+```
+
+`set_webhook.py` registers the deployed Function URL with Telegram and pushes the `/` command menus. Telegram only delivers updates via one mechanism at a time — once a webhook is registered, local long polling (`bot.local`) will start throwing `Conflict` errors (expected; it means the webhook took over). To go back to local dev, delete the webhook first: `curl https://api.telegram.org/bot<token>/deleteWebhook`.
+
 ## Project docs
 
 - [`CLAUDE.md`](CLAUDE.md) — architecture notes and conventions for anyone (human or AI) working on this codebase.
-- [`docs/PROGRESS.md`](docs/PROGRESS.md) — what's implemented so far and what's still remaining (deployment isn't built yet).
+- [`docs/PROGRESS.md`](docs/PROGRESS.md) — what's implemented so far and what's still remaining.

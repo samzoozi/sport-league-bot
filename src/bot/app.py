@@ -45,13 +45,19 @@ ADMIN_COMMANDS = PLAYER_COMMANDS + [
 ]
 
 
-async def _post_init(application: Application) -> None:
-    await application.bot.set_my_commands(
-        PLAYER_COMMANDS, scope=BotCommandScopeAllGroupChats()
-    )
-    await application.bot.set_my_commands(
+async def set_bot_commands(bot) -> None:
+    """Push the two Telegram '/' command menus. Only invoked automatically by
+    run_polling()/run_webhook() via post_init — NOT by plain
+    Application.initialize() (what the Lambda handler uses), so
+    scripts/set_webhook.py calls this explicitly once after deploying."""
+    await bot.set_my_commands(PLAYER_COMMANDS, scope=BotCommandScopeAllGroupChats())
+    await bot.set_my_commands(
         ADMIN_COMMANDS, scope=BotCommandScopeAllChatAdministrators()
     )
+
+
+async def _post_init(application: Application) -> None:
+    await set_bot_commands(application.bot)
 
 
 def build_application() -> Application:

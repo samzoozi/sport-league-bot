@@ -14,3 +14,4 @@ wheels/
 
 # CDK
 infra/cdk.out/
+infra/lambda_build/

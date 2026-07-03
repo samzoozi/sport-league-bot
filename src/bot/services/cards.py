@@ -27,10 +27,10 @@ def signup_card(
 
     cost_per_player = month_meta.get("cost_per_player")
     if finalized and cost_per_player is not None:
-        cost_line = f"Total cost: ${total_cost} (${cost_per_player}/player, charged)"
+        cost_line = f"💰 Total cost: ${total_cost} (${cost_per_player}/player, charged)"
     else:
         per_player = total_cost / len(registered_ids) if registered_ids else None
-        cost_line = f"Total cost: ${total_cost}"
+        cost_line = f"💰 Total cost: ${total_cost}"
         if per_player is not None:
             cost_line += f" (~${per_player:.2f}/player at current squad size)"
 
@@ -41,17 +41,17 @@ def signup_card(
     )
     lines = [
         f"{header} — games on {month_meta['weekday']}s",
-        f"Dates: {dates}",
+        f"🗓️ Dates: {dates}",
         cost_line,
         "",
-        f"{'Final squad' if finalized else 'Squad'} ({len(squad_names)}/{MAX_PLAYERS}):",
+        f"👥 {'Final squad' if finalized else 'Squad'} ({len(squad_names)}/{MAX_PLAYERS}):",
     ]
     lines += [f"{i}. {name}" for i, name in enumerate(squad_names, 1)] or ["(empty)"]
 
     if finalized:
         return "\n".join(lines), None
 
-    lines += ["", "Tap a button below to join or decline."]
+    lines += ["", "👇 Tap a button below to join or decline."]
     keyboard = InlineKeyboardMarkup(
         [
             [
@@ -78,7 +78,7 @@ def game_card(game_date: str, weekday: str, names: list[str]) -> str:
         f"🏐 Next game: {weekday}, {game_date}",
         status,
         "",
-        f"Players ({count}/{MAX_PLAYERS}):",
+        f"👥 Players ({count}/{MAX_PLAYERS}):",
     ]
     lines += [f"{i}. {name}" for i, name in enumerate(sorted(names), 1)] or ["(none)"]
     return "\n".join(lines)

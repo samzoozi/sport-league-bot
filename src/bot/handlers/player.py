@@ -88,7 +88,7 @@ async def setemail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     player = db.get_player(scope, user.id)
     if player is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> first."
+            "You haven't registered yet — run /register <email> [display name] first."
         )
         return
 
@@ -131,7 +131,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     player = db.get_player(scope, user.id)
     if player is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email>."
+            "You haven't registered yet — run /register <email> [display name]."
         )
         return
 
@@ -164,7 +164,7 @@ async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if db.get_player(scope, user.id) is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> first."
+            "You haven't registered yet — run /register <email> [display name] first."
         )
         return
 

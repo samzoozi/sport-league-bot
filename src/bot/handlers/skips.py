@@ -15,7 +15,7 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if db.get_player(scope, user.id) is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> first."
+            "You haven't registered yet — run /register <email> [display name] first."
         )
         return
 

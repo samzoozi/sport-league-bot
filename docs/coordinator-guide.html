@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hangar Sport Bot — Coordinator's Guide</title>
+<style>
+  :root {
+    --accent: #2563eb;
+    --accent-dark: #1e40af;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --muted: #64748b;
+    --code-bg: #f1f5f9;
+    --admin: #dc2626;
+    --player: #059669;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 100px;
+  }
+  header {
+    margin-bottom: 40px;
+  }
+  header h1 {
+    font-size: 2.1rem;
+    margin: 0 0 6px;
+  }
+  header p.subtitle {
+    color: var(--muted);
+    font-size: 1.05rem;
+    margin: 0;
+  }
+  nav.toc {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 28px 0 40px;
+  }
+  nav.toc h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+  nav.toc ol {
+    margin: 0;
+    padding-left: 20px;
+    columns: 2;
+    column-gap: 32px;
+  }
+  nav.toc li { margin-bottom: 6px; break-inside: avoid; }
+  nav.toc a { color: var(--accent-dark); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+
+  section {
+    margin-bottom: 48px;
+    scroll-margin-top: 20px;
+  }
+  section h2 {
+    font-size: 1.4rem;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+  section h3 {
+    font-size: 1.1rem;
+    margin: 28px 0 10px;
+    color: var(--accent-dark);
+  }
+  p { margin: 0 0 14px; }
+  ul, ol { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--code-bg);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+    color: #0f172a;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin: 16px 0;
+  }
+  .card.tip {
+    border-left: 4px solid var(--accent);
+  }
+  .card.warn {
+    border-left: 4px solid #d97706;
+    background: #fffbeb;
+  }
+  .card.tip strong, .card.warn strong { display: block; margin-bottom: 4px; }
+
+  .cmd-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.95rem;
+  }
+  .cmd-table th, .cmd-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .cmd-table th {
+    background: var(--code-bg);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .cmd-table tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    color: #fff;
+  }
+  .badge.admin { background: var(--admin); }
+  .badge.player { background: var(--player); }
+
+  .step {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .step .num {
+    flex: 0 0 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  .step .content { flex: 1; }
+  .step .content strong { display: block; margin-bottom: 4px; }
+
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 640px) {
+    nav.toc ol { columns: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>🏐 Hangar Sport Bot — Coordinator's Guide</h1>
+  <p class="subtitle">Everything a group coordinator needs to run a monthly volleyball league with the bot.</p>
+</header>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#getting-started">Getting started (one-time)</a></li>
+    <li><a href="#monthly-cycle">The monthly cycle, at a glance</a></li>
+    <li><a href="#opening">Opening signups for a month</a></li>
+    <li><a href="#managing-squad">Managing the squad before finalizing</a></li>
+    <li><a href="#finalizing">Finalizing the squad</a></li>
+    <li><a href="#during-month">During the month: skips &amp; the waitlist</a></li>
+    <li><a href="#money">Managing money</a></li>
+    <li><a href="#players">What players do themselves</a></li>
+    <li><a href="#multi">Multiple groups or topics</a></li>
+    <li><a href="#faq">Good to know / FAQ</a></li>
+    <li><a href="#reference">Full command reference</a></li>
+  </ol>
+</nav>
+
+<section id="getting-started">
+  <h2>1. Getting started (one-time)</h2>
+  <div class="step">
+    <div class="num">1</div>
+    <div class="content">
+      <strong>Add the bot to your group.</strong>
+      Add <code>@HangarSportBot</code> to your Telegram group like any other member.
+    </div>
+  </div>
+  <div class="step">
+    <div class="num">2</div>
+    <div class="content">
+      <strong>Run <code>/setupgroup</code>.</strong>
+      Only a Telegram admin/owner of the group can do this. Run it with no arguments and tap a weekday
+      from the buttons that appear (or type <code>/setupgroup Monday</code> to skip the buttons). This is
+      the weekday your league plays on every week, and only needs to be done once, ever.
+    </div>
+  </div>
+  <div class="card tip">
+    <strong>Who counts as an admin?</strong>
+    The bot doesn't keep its own admin list — anyone Telegram considers an admin or owner of your group
+    can run coordinator-only commands. There's nothing extra to configure.
+  </div>
+</section>
+
+<section id="monthly-cycle">
+  <h2>2. The monthly cycle, at a glance</h2>
+  <p>Every month follows the same rhythm:</p>
+  <div class="step"><div class="num">1</div><div class="content"><strong>Open signups</strong> with <code>/newmonth</code>.</div></div>
+  <div class="step"><div class="num">2</div><div class="content"><strong>Players join or decline</strong> via buttons on the card the bot posts.</div></div>
+  <div class="step"><div class="num">3</div><div class="content"><strong>Lock the squad</strong> with <code>/finalize</code> — this also charges everyone their share.</div></div>
+  <div class="step"><div class="num">4</div><div class="content"><strong>Games happen</strong> week to week. Anyone who can't make the next game can <code>/skip</code>, and the bot automatically offers their spot to the waitlist.</div></div>
+  <div class="step"><div class="num">5</div><div class="content"><strong>Repeat</strong> next month with a new <code>/newmonth</code>.</div></div>
+  <div class="card tip">
+    <strong>You can get ahead of schedule</strong>
+    It's fine to open and finalize next month's squad while this month's games are still being played —
+    the bot always knows which month's games are actually next, regardless of which was set up more recently.
+  </div>
+</section>
+
+<section id="opening">
+  <h2>3. Opening signups for a month</h2>
+  <p>Run:</p>
+  <p><code>/newmonth &lt;YYYY-MM&gt; &lt;total_cost&gt; [skip-dates...]</code></p>
+  <p>For example, to open August 2026 with a $240 total court cost:</p>
+  <p><code>/newmonth 2026-08 240</code></p>
+  <p>
+    The bot works out every date in that month that falls on your group's weekday and posts a signup
+    card with <strong>✅ Join</strong> and <strong>❌ Decline</strong> buttons. Players tap one to sign
+    themselves up — there's no cap during signup, so everyone who wants in can join; capacity is only
+    enforced when you finalize (see below).
+  </p>
+  <h3>Skipping a specific date (e.g. a holiday)</h3>
+  <p>
+    If the court isn't available on one of the usual dates, list it after the cost. For example, if
+    August's Mondays are the 3rd, 10th, 17th, 24th, and 31st, but the 3rd is a holiday:
+  </p>
+  <p><code>/newmonth 2026-08 240 2026-08-03</code></p>
+  <p>This creates the month with only the remaining four Mondays as game dates.</p>
+  <div class="card warn">
+    <strong>A month key can only be used once</strong>
+    You can't run <code>/newmonth</code> twice for the same <code>YYYY-MM</code> — if you need to start
+    over on a month you haven't finalized yet, delete it first with <code>/deletemonth</code>.
+  </div>
+</section>
+
+<section id="managing-squad">
+  <h2>4. Managing the squad before finalizing</h2>
+  <h3>Re-showing the signup card</h3>
+  <p>
+    If the original card scrolls out of view, run <code>/squad</code> to post a fresh, up-to-date copy.
+  </p>
+  <h3>Adding or removing someone yourself</h3>
+  <p>
+    Sometimes you need to add or remove a player directly rather than waiting for them to tap a button —
+    e.g. someone tells you in person they want in. Two ways to point the bot at the right person:
+  </p>
+  <ul>
+    <li><strong>Reply</strong> to one of their messages with <code>/addplayer</code> or <code>/removeplayer</code>.</li>
+    <li><strong>Tag them</strong> by typing <code>@</code> and picking their name from Telegram's own
+      suggestion popup (not by typing out an <code>@username</code> yourself — that only works if they
+      already have a public Telegram username <em>and</em> have talked to the bot before).</li>
+  </ul>
+  <p>
+    <code>/addplayer</code> works even for someone who has never interacted with the bot at all — it
+    registers a placeholder profile for them automatically (they just won't have an e-transfer email on
+    file until they run <code>/setemail</code> themselves).
+  </p>
+  <h3>Starting over</h3>
+  <p>
+    <code>/deletemonth &lt;YYYY-MM&gt;</code> removes a month's squad entirely — but only while it's
+    still open (not yet finalized), since finalizing already charges people and deleting shouldn't
+    silently undo that.
+  </p>
+</section>
+
+<section id="finalizing">
+  <h2>5. Finalizing the squad</h2>
+  <p>When signups are done, lock it in:</p>
+  <p><code>/finalize [max_players]</code></p>
+  <p>This does three things at once:</p>
+  <ul>
+    <li>Caps the squad at <code>max_players</code> (default 14) — if more people joined than that, whoever joined <em>last</em> is dropped from the squad (no waitlist placement; they'd need to join a specific game's waitlist manually once games start, via <code>/waitlist</code>).</li>
+    <li>Splits the total cost evenly across everyone who made the cut, and charges each of them that amount.</li>
+    <li>Posts an updated card showing the locked-in "🔒 FINALIZED" squad — the Join/Decline buttons disappear since the squad's set.</li>
+  </ul>
+  <div class="card warn">
+    <strong>Finalizing is final</strong>
+    Once finalized, players can no longer join or leave via the card, and you can't re-run
+    <code>/newmonth</code> or <code>/deletemonth</code> for that month. If you need to adjust the squad
+    or balances afterward, use <code>/addplayer</code>/<code>/removeplayer</code> won't work anymore —
+    handle corrections manually with <code>/charge</code>/<code>/credit</code> (see "Managing money" below).
+  </div>
+</section>
+
+<section id="during-month">
+  <h2>6. During the month: skips &amp; the waitlist</h2>
+  <p>
+    Once a month is finalized, two player-facing flows kick in — both of them only ever apply to the
+    <strong>next upcoming game</strong>, never the whole month:
+  </p>
+  <h3>A player skips a game</h3>
+  <p>
+    A squad member who can't make the next game runs <code>/skip</code> and confirms with a button. The
+    bot then automatically:
+  </p>
+  <ol>
+    <li>Checks that game's waitlist (people who ran <code>/waitlist</code> to be next in line).</li>
+    <li>If someone's waiting, <strong>tags them in the group</strong> with Accept/Decline buttons.</li>
+    <li>If they accept, the bot posts the dollar amount they owe and the original player's e-transfer
+      email, so they can pay directly — you don't need to get involved.</li>
+    <li>If they decline (or nobody was waiting), the bot either offers the spot to the next person in
+      line or announces that the spot is open with nobody to fill it.</li>
+  </ol>
+  <h3>Checking who's playing</h3>
+  <table class="cmd-table">
+    <tr><th>Command</th><th>What it shows</th></tr>
+    <tr><td><code>/nextgame</code></td><td>The next game's date and exactly who's confirmed to play (accounting for skips/replacements).</td></tr>
+    <tr><td><code>/games</code></td><td>The whole month's schedule, with a confirmed headcount per date.</td></tr>
+  </table>
+  <div class="card tip">
+    <strong>Rolls over automatically</strong>
+    The day after a game happens, "the next game" naturally becomes the following date — there's nothing
+    you need to do to advance it.
+  </div>
+</section>
+
+<section id="money">
+  <h2>7. Managing money</h2>
+  <p>Every player has a running balance (negative = they owe money, positive = they're in credit).</p>
+  <table class="cmd-table">
+    <tr><th>Command</th><th>What it does</th></tr>
+    <tr><td><code>/charge @user &lt;amount&gt; &lt;desc&gt;</code></td><td>Adds a one-off charge to one player (reply to their message or tag them).</td></tr>
+    <tr><td><code>/credit @user &lt;amount&gt; &lt;desc&gt;</code></td><td>Adds a one-off credit to one player.</td></tr>
+    <tr><td><code>/chargeall &lt;YYYY-MM&gt; &lt;amount&gt; &lt;desc&gt;</code></td><td>Charges the <em>same flat amount</em> to every player in that month's squad, in one shot.</td></tr>
+    <tr><td><code>/creditall &lt;YYYY-MM&gt; &lt;amount&gt; &lt;desc&gt;</code></td><td>Credits the same flat amount to every player in that month's squad.</td></tr>
+    <tr><td><code>/paid @user &lt;amount&gt;</code></td><td>Records that a player has paid you (e.g. by e-transfer) — moves their balance up.</td></tr>
+    <tr><td><code>/balances</code></td><td>Shows everyone's current balance.</td></tr>
+  </table>
+  <p>Some situations where these are handy:</p>
+  <ul>
+    <li>A player e-transfers you their monthly share → <code>/paid @them 75</code>.</li>
+    <li>You need to correct a mistake from <code>/finalize</code> (e.g. the court actually cost less) → <code>/creditall 2026-08 5 court cost correction</code>.</li>
+    <li>Someone needs to be added to a finalized month's charges after the fact → <code>/charge @them 75 August court share</code>.</li>
+  </ul>
+</section>
+
+<section id="players">
+  <h2>8. What players do themselves</h2>
+  <p>You don't need to do these for anyone — but it's worth knowing what they do, since players will ask.</p>
+  <table class="cmd-table">
+    <tr><th>Command</th><th>What it's for</th></tr>
+    <tr><td><code>/register &lt;email&gt; [display name]</code></td><td>One-time registration with an e-transfer email — needed before joining any squad. Re-running it updates their info.</td></tr>
+    <tr><td><code>/setemail &lt;email&gt;</code></td><td>Updates just their e-transfer email.</td></tr>
+    <tr><td><code>/emails</code></td><td>Lists everyone's e-transfer email, for paying each other directly.</td></tr>
+    <tr><td><code>/balance</code></td><td>Shows their own balance and recent transactions.</td></tr>
+    <tr><td><code>/waitlist</code></td><td>Joins the waitlist for the next game (only works once that month is finalized).</td></tr>
+    <tr><td><code>/help</code></td><td>Shows the full command list, split into player and admin sections.</td></tr>
+  </table>
+  <div class="card tip">
+    <strong>Registration only happens once</strong>
+    A player's profile (email, name, balance) persists forever once they've registered — they only need
+    to tap "Join" each month after that, not register again.
+  </div>
+</section>
+
+<section id="multi">
+  <h2>9. Multiple groups or topics</h2>
+  <p>
+    If your Telegram group uses <strong>Topics</strong> (the feature that splits a group into named
+    sub-threads, e.g. "Monday Games" and "Wednesday Games"), each topic can run its own completely
+    independent league — separate squads, waitlists, and balances.
+  </p>
+  <p>
+    To set this up, run <code>/setupgroup</code> separately <em>inside each topic</em> you want to act as
+    its own league. Every other command (<code>/newmonth</code>, <code>/finalize</code>, etc.) then only
+    ever affects the topic it's run in.
+  </p>
+</section>
+
+<section id="faq">
+  <h2>10. Good to know / FAQ</h2>
+
+  <h3>Can I bulk-register everyone in the group at once?</h3>
+  <p>
+    No — Telegram doesn't let bots see a group's full member list for privacy reasons. Registration
+    happens per player (they run <code>/register</code> themselves), though you can register someone on
+    their behalf via <code>/addplayer</code> even if they've never messaged the bot.
+  </p>
+
+  <h3>What if a player has no e-transfer email on file?</h3>
+  <p>
+    They can still join a squad and the waitlist just fine. It only becomes a problem if <em>they're the
+    one</em> who needs to be paid — e.g. if they skip a game and someone replaces them, that replacement
+    won't see an email to pay them until they run <code>/setemail</code>.
+  </p>
+
+  <h3>What happens if too many people join before I finalize?</h3>
+  <p>
+    Nothing during signup — join is uncapped on purpose. At <code>/finalize</code>, anyone past the cap
+    (default 14, or whatever you pass as <code>max_players</code>) is dropped, prioritizing whoever
+    joined earliest.
+  </p>
+
+  <h3>Can I edit the squad after finalizing?</h3>
+  <p>
+    Not via <code>/addplayer</code>/<code>/removeplayer</code> — those are deliberately locked out once a
+    month is finalized, since squad changes need matching balance changes to stay consistent. Use
+    <code>/charge</code>/<code>/credit</code> to make manual corrections instead.
+  </p>
+
+  <h3>Can a player skip more than just the next game?</h3>
+  <p>
+    Not in one step — <code>/skip</code> only ever targets the single next game. If they know they'll
+    miss several games, they'd run <code>/skip</code> again once that date rolls over to become "next."
+  </p>
+</section>
+
+<section id="reference">
+  <h2>11. Full command reference</h2>
+  <h3><span class="badge admin">Admin</span> Commands</h3>
+  <table class="cmd-table">
+    <tr><th>Command</th><th>Usage</th></tr>
+    <tr><td><code>/setupgroup</code></td><td>One-time setup — tap a weekday, or <code>/setupgroup &lt;weekday&gt;</code></td></tr>
+    <tr><td><code>/newmonth</code></td><td><code>/newmonth &lt;YYYY-MM&gt; &lt;total_cost&gt; [skip-dates...]</code></td></tr>
+    <tr><td><code>/deletemonth</code></td><td><code>/deletemonth &lt;YYYY-MM&gt;</code> — open months only</td></tr>
+    <tr><td><code>/addplayer</code> / <code>/removeplayer</code></td><td>Reply to their message, or tag them — open months only</td></tr>
+    <tr><td><code>/finalize</code></td><td><code>/finalize [max_players]</code></td></tr>
+    <tr><td><code>/charge</code> / <code>/credit</code></td><td><code>&lt;amount&gt; &lt;desc&gt;</code> — reply or tag one player</td></tr>
+    <tr><td><code>/chargeall</code> / <code>/creditall</code></td><td><code>&lt;YYYY-MM&gt; &lt;amount&gt; &lt;desc&gt;</code> — whole squad</td></tr>
+    <tr><td><code>/paid</code></td><td><code>@user &lt;amount&gt;</code></td></tr>
+    <tr><td><code>/balances</code></td><td>Everyone's balance</td></tr>
+  </table>
+
+  <h3><span class="badge player">Player</span> Commands</h3>
+  <table class="cmd-table">
+    <tr><th>Command</th><th>Usage</th></tr>
+    <tr><td><code>/register</code></td><td><code>&lt;email&gt; [display name]</code></td></tr>
+    <tr><td><code>/setemail</code></td><td><code>&lt;email&gt;</code></td></tr>
+    <tr><td><code>/emails</code></td><td>List everyone's e-transfer email</td></tr>
+    <tr><td><code>/balance</code></td><td>Your balance and recent transactions</td></tr>
+    <tr><td><code>/squad</code></td><td>Re-post the current month's signup card</td></tr>
+    <tr><td><code>/skip</code></td><td>Skip the next game</td></tr>
+    <tr><td><code>/waitlist</code></td><td>Join the waitlist for the next game</td></tr>
+    <tr><td><code>/nextgame</code></td><td>Who's playing in the next game</td></tr>
+    <tr><td><code>/games</code></td><td>This month's schedule</td></tr>
+    <tr><td><code>/help</code></td><td>Full command list, in the bot itself</td></tr>
+  </table>
+</section>
+
+<footer>
+  Hangar Sport Bot — see <code>README.md</code> for setup/deployment and <code>docs/PROGRESS.md</code> for implementation status.
+</footer>
+
+</div>
+</body>
+</html>

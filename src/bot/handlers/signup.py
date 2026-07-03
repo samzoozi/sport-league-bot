@@ -46,7 +46,9 @@ async def signup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user = update.effective_user
 
     if db.get_player(scope, user.id) is None:
-        await query.answer("Please run /register <email> first.", show_alert=True)
+        await query.answer(
+            "Please run /register <email> [display name] first.", show_alert=True
+        )
         return
 
     month_meta = db.get_month(scope, month)

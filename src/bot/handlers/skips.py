@@ -40,9 +40,11 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.effective_message.reply_text(f"You're not playing {next_date}.")
         return
 
+    existing_skip = db.get_skip(scope, next_date, user.id)
     if (
         db.is_registered(scope, month, user.id)
-        and db.get_skip(scope, next_date, user.id) is not None
+        and existing_skip is not None
+        and existing_skip["status"] == "open"
     ):
         await update.effective_message.reply_text(
             f"You've already requested to skip {next_date}."
@@ -102,11 +104,15 @@ async def skip_pick_callback(
         return
 
     if db.is_registered(scope, month, user.id):
-        if db.get_skip(scope, date_str, user.id) is not None:
+        existing_skip = db.get_skip(scope, date_str, user.id)
+        if existing_skip is not None and existing_skip["status"] == "open":
             await query.answer("You've already skipped this game.")
             return
-        db.add_skip(scope, date_str, user.id)
         owner_id = user.id
+        if existing_skip is None:
+            db.add_skip(scope, date_str, user.id)
+        else:
+            db.reopen_skip(scope, date_str, owner_id, vacated_by=user.id)
     else:
         occupied = db.get_occupied_skip(scope, date_str, user.id)
         if occupied is None:
@@ -120,15 +126,27 @@ async def skip_pick_callback(
     )
     await query.answer()
 
-    await offer_next(context.bot, scope, chat_id, thread_id, date_str, owner_id)
-    await post_game_card(
-        context.bot, scope, chat_id, thread_id, month, month_meta["weekday"], date_str
+    offer_sent = await offer_next(
+        context.bot, scope, chat_id, thread_id, date_str, owner_id
     )
+    if not offer_sent:
+        await post_game_card(
+            context.bot,
+            scope,
+            chat_id,
+            thread_id,
+            month,
+            month_meta["weekday"],
+            date_str,
+        )
 
 
 async def offer_next(
     bot, scope: str, chat_id: int, thread_id: int | None, date_str: str, owner_id: int
-) -> None:
+) -> bool:
+    """Returns True if a waitlist candidate was actually offered the spot
+    (an actionable Accept/Decline card is now live), False if the spot was
+    just announced as open with no one to offer it to."""
     # owner_id is always the original registrant's user_id — a spot's skip
     # record is keyed by them for its whole lifetime, no matter how many
     # times it's been vacated and re-filled. vacated_by tracks whoever most
@@ -146,12 +164,13 @@ async def offer_next(
         await bot.send_message(
             chat_id, text, entities=entities, message_thread_id=thread_id
         )
-        return
+        return False
 
     candidate = db.get_player(scope, int(waitlist[0]["user_id"]))
     await _send_offer(
         bot, scope, chat_id, thread_id, date_str, owner_id, announcer, candidate
     )
+    return True
 
 
 async def _send_offer(

@@ -82,7 +82,10 @@ def game_card(
             row = f"✅ {registrant_name}"
             count += 1
         elif entry["replacement_id"] is not None:
-            row = f"✅ {registrant_name} → {name_of(entry['replacement_id'])}"
+            if entry["replacement_id"] == entry["registrant_id"]:
+                row = f"✅ {registrant_name}"
+            else:
+                row = f"✅ {registrant_name} → {name_of(entry['replacement_id'])}"
             count += 1
         else:
             row = f"❌ {registrant_name} (no replacement yet)"

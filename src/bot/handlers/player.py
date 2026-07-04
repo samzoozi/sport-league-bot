@@ -220,7 +220,10 @@ async def addtowaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     month = month_meta["month"]
-    if db.is_registered(scope, month, user.id):
+    if (
+        db.is_registered(scope, month, user.id)
+        and db.get_skip(scope, next_date, user.id) is None
+    ):
         await update.effective_message.reply_text("You're already in the squad.")
         return
 

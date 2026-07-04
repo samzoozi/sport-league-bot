@@ -56,6 +56,10 @@ def skip_sk(date: str, user_id: int) -> str:
     return f"GAME#{date}#SKIP#{user_id}"
 
 
+def extra_sk(date: str, user_id: int) -> str:
+    return f"GAME#{date}#EXTRA#{user_id}"
+
+
 def get_group(scope: str) -> dict | None:
     resp = table().get_item(Key={"PK": scope, "SK": "META"})
     return resp.get("Item")
@@ -407,6 +411,41 @@ def list_skips_for_date(scope: str, date: str) -> list[dict]:
         },
     )
     return [_normalize_skip(item) for item in resp.get("Items", [])]
+
+
+def add_extra_attendee(scope: str, date: str, user_id: int) -> None:
+    """Add someone to a specific game who isn't tied to any registration or
+    skip — e.g. an admin-added guest, independent of the squad/skip system."""
+    table().put_item(
+        Item={
+            "PK": scope,
+            "SK": extra_sk(date, user_id),
+            "item_type": "EXTRA",
+            "user_id": user_id,
+            "date": date,
+            "created_at": _now(),
+        }
+    )
+
+
+def remove_extra_attendee(scope: str, date: str, user_id: int) -> None:
+    table().delete_item(Key={"PK": scope, "SK": extra_sk(date, user_id)})
+
+
+def get_extra_attendee(scope: str, date: str, user_id: int) -> dict | None:
+    resp = table().get_item(Key={"PK": scope, "SK": extra_sk(date, user_id)})
+    return resp.get("Item")
+
+
+def list_extra_attendees(scope: str, date: str) -> list[dict]:
+    resp = table().query(
+        KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
+        ExpressionAttributeValues={
+            ":pk": scope,
+            ":prefix": f"GAME#{date}#EXTRA#",
+        },
+    )
+    return resp.get("Items", [])
 
 
 def delete_month(scope: str, month: str) -> None:

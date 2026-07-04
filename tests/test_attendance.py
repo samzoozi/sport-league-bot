@@ -77,3 +77,25 @@ def test_attendees_excludes_slot_after_replacement_backs_out():
 
     attendees = attendees_for_date(SCOPE, MONTH, DATE)
     assert set(attendees) == {1, 3}
+
+
+def test_extra_attendee_shows_up_alongside_the_squad():
+    _setup_squad()
+    db.upsert_player(SCOPE, 5, "Guest Player", None, "p5@example.com")
+    db.add_extra_attendee(SCOPE, DATE, 5)
+
+    attendees = attendees_for_date(SCOPE, MONTH, DATE)
+    assert set(attendees) == {1, 2, 3, 5}
+
+    roster = game_roster(SCOPE, MONTH, DATE)
+    by_id = {entry["registrant_id"]: entry for entry in roster}
+    assert by_id[5] == {"registrant_id": 5, "skipped": False, "replacement_id": None}
+
+
+def test_extra_attendee_is_scoped_to_its_own_date():
+    _setup_squad()
+    db.upsert_player(SCOPE, 5, "Guest Player", None, "p5@example.com")
+    db.add_extra_attendee(SCOPE, DATE, 5)
+
+    other_date_attendees = attendees_for_date(SCOPE, MONTH, "2026-08-17")
+    assert 5 not in other_date_attendees

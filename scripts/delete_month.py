@@ -72,7 +72,7 @@ def main() -> None:
     keys_to_delete += resp.get("Items", [])
 
     for date in game_dates:
-        for prefix in (f"GAME#{date}#SKIP#", f"GAME#{date}#WL#"):
+        for prefix in (f"GAME#{date}#SKIP#", f"GAME#{date}#WL#", f"GAME#{date}#EXTRA#"):
             resp = table.query(
                 KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
                 ExpressionAttributeValues={":pk": scope, ":prefix": prefix},
@@ -84,7 +84,7 @@ def main() -> None:
     print(f"Scope: {scope}")
     print(
         f"About to delete {len(keys_to_delete)} item(s) for month '{args.month}' "
-        f"(squad, waitlist, skip records — {len(game_dates)} game date(s))."
+        f"(squad, waitlist, skip, extra-attendee records — {len(game_dates)} game date(s))."
     )
     print("Player profiles, balances, and transaction history will NOT be touched.")
 

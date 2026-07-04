@@ -3,6 +3,7 @@ from decimal import Decimal
 from bot.services.months import (
     current_month,
     game_dates_for_month,
+    month_for_date,
     next_game_date,
     parse_month,
     parse_weekday,
@@ -156,3 +157,16 @@ def test_current_month_falls_back_to_most_recent_when_none_have_upcoming_dates()
 
 def test_current_month_returns_none_for_empty_list():
     assert current_month([]) is None
+
+
+def test_month_for_date_finds_the_owning_month_regardless_of_status():
+    july = {"month": "2026-07", "status": "finalized", "game_dates": ["2026-07-06"]}
+    august = {"month": "2026-08", "status": "open", "game_dates": ["2026-08-03"]}
+
+    assert month_for_date([july, august], "2026-07-06")["month"] == "2026-07"
+    assert month_for_date([july, august], "2026-08-03")["month"] == "2026-08"
+
+
+def test_month_for_date_returns_none_for_unscheduled_date():
+    july = {"month": "2026-07", "status": "finalized", "game_dates": ["2026-07-06"]}
+    assert month_for_date([july], "2026-07-13") is None

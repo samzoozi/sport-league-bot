@@ -4,10 +4,21 @@ from telegram.ext import ContextTypes
 from bot import db
 from bot.config import MAX_PLAYERS
 from bot.handlers.signup import post_signup_card, refresh_signup_message
-from bot.services.months import game_dates_for_month, parse_month, split_cost
+from bot.services.attendance import attendees_for_date
+from bot.services.months import (
+    game_dates_for_month,
+    month_for_date,
+    parse_month,
+    split_cost,
+)
 from bot.services.permissions import require_group_admin, require_group_setup
 from bot.services.scope import resolve_scope
 from bot.services.users import resolve_target_and_rest, resolve_target_user
+
+NO_BALANCE_CHANGE_WARNING = (
+    "This does NOT adjust anyone's balance — use /charge or /credit manually "
+    "if money needs to change hands."
+)
 
 
 @require_group_admin
@@ -160,6 +171,98 @@ async def removefromsquad(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         f"Removed {target['name']} from the squad."
     )
     await refresh_signup_message(context.bot, scope, chat_id, month)
+
+
+@require_group_admin
+async def addplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    scope = resolve_scope(update)
+    target, rest = resolve_target_and_rest(update, context)
+    if target is None or not rest:
+        await update.effective_message.reply_text(
+            "Usage: reply to their message, or use @username, followed by the game "
+            "date — e.g. /addplayer @username 2026-08-10"
+        )
+        return
+
+    game_date = rest[0]
+    month_meta = month_for_date(db.list_months(scope), game_date)
+    if month_meta is None:
+        await update.effective_message.reply_text(
+            f"{game_date} isn't a scheduled game date for any month."
+        )
+        return
+    if month_meta["status"] != "finalized":
+        await update.effective_message.reply_text(
+            f"{month_meta['month']} hasn't been finalized yet."
+        )
+        return
+
+    month = month_meta["month"]
+    db.ensure_player_stub(scope, target["user_id"], target["name"], target["username"])
+
+    if target["user_id"] in attendees_for_date(scope, month, game_date):
+        await update.effective_message.reply_text(
+            f"{target['name']} is already playing {game_date}."
+        )
+        return
+
+    db.add_extra_attendee(scope, game_date, target["user_id"])
+    await update.effective_message.reply_text(
+        f"Added {target['name']} to {game_date}. {NO_BALANCE_CHANGE_WARNING}"
+    )
+
+
+@require_group_admin
+async def removeplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    scope = resolve_scope(update)
+    target, rest = resolve_target_and_rest(update, context)
+    if target is None or not rest:
+        await update.effective_message.reply_text(
+            "Usage: reply to their message, or use @username, followed by the game "
+            "date — e.g. /removeplayer @username 2026-08-10"
+        )
+        return
+
+    game_date = rest[0]
+    month_meta = month_for_date(db.list_months(scope), game_date)
+    if month_meta is None:
+        await update.effective_message.reply_text(
+            f"{game_date} isn't a scheduled game date for any month."
+        )
+        return
+    if month_meta["status"] != "finalized":
+        await update.effective_message.reply_text(
+            f"{month_meta['month']} hasn't been finalized yet."
+        )
+        return
+
+    month = month_meta["month"]
+    user_id = target["user_id"]
+
+    if user_id not in attendees_for_date(scope, month, game_date):
+        await update.effective_message.reply_text(
+            f"{target['name']} isn't playing {game_date}."
+        )
+        return
+
+    if db.get_extra_attendee(scope, game_date, user_id) is not None:
+        db.remove_extra_attendee(scope, game_date, user_id)
+    elif (
+        db.is_registered(scope, month, user_id)
+        and db.get_skip(scope, game_date, user_id) is None
+    ):
+        db.add_skip(scope, game_date, user_id)
+    else:
+        occupied = db.get_occupied_skip(scope, game_date, user_id)
+        if occupied is not None:
+            db.reopen_skip(
+                scope, game_date, int(occupied["user_id"]), vacated_by=user_id
+            )
+
+    await update.effective_message.reply_text(
+        f"Removed {target['name']} from {game_date}. {NO_BALANCE_CHANGE_WARNING} "
+        "This does not offer the spot to the waitlist."
+    )
 
 
 @require_group_admin

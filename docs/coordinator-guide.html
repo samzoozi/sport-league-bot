@@ -313,9 +313,11 @@
   <div class="card warn">
     <strong>Finalizing is final</strong>
     Once finalized, players can no longer join or leave via the card, and you can't re-run
-    <code>/newmonth</code> or <code>/deletemonth</code> for that month. If you need to adjust the squad
-    or balances afterward, use <code>/addtosquad</code>/<code>/removefromsquad</code> won't work anymore —
-    handle corrections manually with <code>/charge</code>/<code>/credit</code> (see "Managing money" below).
+    <code>/newmonth</code> or <code>/deletemonth</code> for that month, and
+    <code>/addtosquad</code>/<code>/removefromsquad</code> stop working too. You can still fix a single
+    game with <code>/addplayer</code>/<code>/removeplayer</code> (see "During the month" below) — handle
+    any resulting balance corrections manually with <code>/charge</code>/<code>/credit</code> (see
+    "Managing money" below).
   </div>
 </section>
 
@@ -370,6 +372,30 @@
     The day after a game happens, "the next game" naturally becomes the following date — there's nothing
     you need to do to advance it.
   </div>
+  <h3>Manually fixing one specific game</h3>
+  <p>
+    Sometimes you need to add or remove someone from just <strong>one</strong> game directly — e.g. a
+    friend is filling in for a single date, or someone who showed up isn't actually going to play. Unlike
+    <code>/addtosquad</code>/<code>/removefromsquad</code>, these work <strong>after</strong> finalizing,
+    and target one game date instead of the whole month:
+  </p>
+  <p><code>/addplayer @user &lt;YYYY-MM-DD&gt;</code> and <code>/removeplayer @user &lt;YYYY-MM-DD&gt;</code>
+    (reply to their message works too, same as other admin commands).</p>
+  <div class="card warn">
+    <strong>These never touch anyone's balance</strong>
+    Adding or removing someone from a single game doesn't charge or credit anybody automatically — you'll
+    get a reminder in the bot's reply. If money needs to move, follow up with <code>/charge</code> or
+    <code>/credit</code> yourself.
+  </div>
+  <ul>
+    <li><code>/addplayer</code> can add someone even if the whole squad already showed up — they're added
+      as an extra person for that game, on top of the normal roster.</li>
+    <li><code>/removeplayer</code> is a quiet removal — it does <strong>not</strong> offer their spot to
+      the waitlist the way <code>/skip</code> does. If you also want the spot filled, tell someone to run
+      <code>/addtowaitlist</code> for that date separately.</li>
+    <li>Removing a squad member this way shows up on <code>/nextgame</code> exactly like a normal skip —
+      <code>❌ Name (no replacement yet)</code> — rather than disappearing from the list.</li>
+  </ul>
 </section>
 
 <section id="money">
@@ -454,9 +480,11 @@
 
   <h3>Can I edit the squad after finalizing?</h3>
   <p>
-    Not via <code>/addtosquad</code>/<code>/removefromsquad</code> — those are deliberately locked out once a
-    month is finalized, since squad changes need matching balance changes to stay consistent. Use
-    <code>/charge</code>/<code>/credit</code> to make manual corrections instead.
+    Not the whole month's squad — <code>/addtosquad</code>/<code>/removefromsquad</code> are deliberately
+    locked out once a month is finalized. But you can still fix <strong>one specific game</strong> with
+    <code>/addplayer</code>/<code>/removeplayer &lt;YYYY-MM-DD&gt;</code> (see "During the month" above) —
+    just remember those don't touch balances, so follow up with <code>/charge</code>/<code>/credit</code>
+    if money needs to move.
   </p>
 
   <h3>Can a player skip more than just the next game?</h3>
@@ -483,6 +511,7 @@
     <tr><td><code>/newmonth</code></td><td><code>/newmonth &lt;YYYY-MM&gt; &lt;total_cost&gt; [skip-dates...]</code></td></tr>
     <tr><td><code>/deletemonth</code></td><td><code>/deletemonth &lt;YYYY-MM&gt;</code> — open months only</td></tr>
     <tr><td><code>/addtosquad</code> / <code>/removefromsquad</code></td><td>Reply to their message, or tag them — open months only</td></tr>
+    <tr><td><code>/addplayer</code> / <code>/removeplayer</code></td><td><code>@user &lt;YYYY-MM-DD&gt;</code> — one specific finalized game only, doesn't touch balances or the waitlist</td></tr>
     <tr><td><code>/finalize</code></td><td><code>/finalize [max_players]</code></td></tr>
     <tr><td><code>/charge</code> / <code>/credit</code></td><td><code>&lt;amount&gt; &lt;desc&gt;</code> — reply or tag one player</td></tr>
     <tr><td><code>/chargeall</code> / <code>/creditall</code></td><td><code>&lt;YYYY-MM&gt; &lt;amount&gt; &lt;desc&gt;</code> — whole squad</td></tr>

@@ -87,3 +87,13 @@ def current_month(months: list[dict], today: str | None = None) -> dict | None:
         return candidates[0][1]
 
     return max(months, key=lambda m: m["month"]) if months else None
+
+
+def month_for_date(months: list[dict], game_date: str) -> dict | None:
+    """Which month's schedule a specific game date belongs to, regardless of
+    whether it's the "current" one — for admin commands that target an
+    arbitrary past/future game by date rather than always the next match."""
+    for m in months:
+        if game_date in m["game_dates"]:
+            return m
+    return None

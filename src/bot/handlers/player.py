@@ -35,6 +35,8 @@ HELP_MESSAGE = (
     "/deletemonth <YYYY-MM> — delete an open (non-finalized) month\n"
     "/addtosquad, /removefromsquad — reply to their message or use @username\n"
     "/finalize [max_players] — lock the squad and charge everyone their share\n"
+    "/addplayer, /removeplayer <YYYY-MM-DD> — add/remove someone from one "
+    "finalized game only (doesn't touch balances or the waitlist)\n"
     "/charge @user <amount> <desc> — reply to their message or use @username\n"
     "/credit @user <amount> <desc> — reply to their message or use @username\n"
     "/chargeall <YYYY-MM> <amount> <desc> — charge that month's whole squad the same amount each\n"

@@ -133,7 +133,6 @@ async def addplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    db.remove_waitlist_entry(scope, month, target["user_id"])
     db.add_registration(scope, month, target["user_id"], added_by="admin")
     await update.effective_message.reply_text(f"Added {target['name']} to the squad.")
     await refresh_signup_message(context.bot, scope, chat_id, month)
@@ -157,9 +156,8 @@ async def removeplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     month = month_meta["month"]
     db.remove_registration(scope, month, target["user_id"])
-    db.remove_waitlist_entry(scope, month, target["user_id"])
     await update.effective_message.reply_text(
-        f"Removed {target['name']} from the squad and waitlist."
+        f"Removed {target['name']} from the squad."
     )
     await refresh_signup_message(context.bot, scope, chat_id, month)
 

@@ -15,7 +15,7 @@ Everything happens inside the group chat. There are **no DM flows** — when the
 uv sync
 
 # Run the bot locally (long polling against the real bot token in .env)
-PYTHONPATH=src uv run python -m bot.local
+uv run python -m bot.local
 
 # Run the full test suite
 uv run pytest
@@ -24,7 +24,7 @@ uv run pytest
 uv run pytest tests/test_db.py::test_add_transaction_updates_balance_and_records_txn
 
 # Sanity-check the app wires up without errors (no network calls)
-PYTHONPATH=src uv run python -c "from bot.app import build_application; build_application()"
+uv run python -c "from bot.app import build_application; build_application()"
 ```
 
 Local dev requires `BOT_TOKEN` in `.env` and a real (or moto-mocked, for tests) DynamoDB table named by `TABLE_NAME` (defaults to `hangar-sport-bot-dev`) in the AWS region from your configured AWS credentials/profile. Tests never touch real AWS — `tests/conftest.py` sets fake credentials and spins up a `moto`-mocked table automatically.
@@ -105,5 +105,5 @@ Nothing in this codebase sets `parse_mode="Markdown"`/`"HTML"`. Player names and
 - `scripts/build_lambda.py` — builds the deployment package into `infra/lambda_build/` (gitignored) by running `uv sync --package lambda-handler --frozen --no-dev --no-editable --compile-bytecode` into an isolated venv (`infra/lambda_venv/`, gitignored, also cleaned before each run), then copying that venv's `site-packages` wholesale into `infra/lambda_build/`. `UV_PROJECT_ENVIRONMENT` is overridden to point `uv sync` at that isolated venv — without it, `uv sync --package` targets the real shared `.venv/` (used for pytest/ruff/local dev) and would strip it down to just the Lambda's minimal runtime deps. `--no-editable` is required so the workspace member (`sport-league-bot`) lands as real copied files rather than an editable path reference back to `src/bot/`, which would be useless once copied elsewhere. No Docker needed — every dependency here is pure Python. Run this before every `cdk deploy`; if in doubt whether the real dev venv got touched, just run a plain `uv sync` afterward to restore it.
 - `scripts/set_webhook.py` — registers the deployed Function URL with Telegram (with the secret token) and calls `set_bot_commands` (see above).
 - CDK's own dependencies (`aws-cdk-lib`, `constructs`) live in a separate `infra` `uv` dependency group (`uv run --group infra ...`), not in either runtime package's dependencies — keeps the Lambda package from being bloated with deployment tooling.
-- Deploy flow: `cdk bootstrap` (one-time per account/region) → `uv run python scripts/build_lambda.py` → `cd infra && cdk deploy` → `PYTHONPATH=src uv run python scripts/set_webhook.py <function-url-from-deploy-output>`. After the first deploy, `scripts/deploy.sh` collapses the build+deploy steps into one command (`./scripts/deploy.sh`) — it doesn't re-run `set_webhook.py`, since the Function URL doesn't change across ordinary deploys.
+- Deploy flow: `cdk bootstrap` (one-time per account/region) → `uv run python scripts/build_lambda.py` → `cd infra && cdk deploy` → `uv run python scripts/set_webhook.py <function-url-from-deploy-output>`. After the first deploy, `scripts/deploy.sh` collapses the build+deploy steps into one command (`./scripts/deploy.sh`) — it doesn't re-run `set_webhook.py`, since the Function URL doesn't change across ordinary deploys.
 - Telegram only delivers updates via one mechanism at a time — once a webhook is registered, local long-polling (`bot.local`) will start throwing `Conflict` errors. That's expected, not a bug; it means the webhook took over. `scripts/go_local.sh` / `scripts/go_prod.sh` automate the full switch (delete-webhook-and-run vs. stop-and-reregister) — use those instead of doing it by hand.

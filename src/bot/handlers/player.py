@@ -224,6 +224,12 @@ async def addtowaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.effective_message.reply_text("You're already in the squad.")
         return
 
+    if user.id in attendees_for_date(scope, month, next_date):
+        await update.effective_message.reply_text(
+            f"You're already playing {next_date} (as someone else's replacement)."
+        )
+        return
+
     existing_waitlist = db.list_waitlist(scope, next_date)
     if any(w["user_id"] == user.id for w in existing_waitlist):
         await update.effective_message.reply_text(

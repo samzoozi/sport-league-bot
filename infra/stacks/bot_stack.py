@@ -25,6 +25,18 @@ class BotStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,
         )
 
+        environment = {
+            "BOT_TOKEN": os.environ["BOT_TOKEN"],
+            "WEBHOOK_SECRET_TOKEN": os.environ["WEBHOOK_SECRET_TOKEN"],
+            "TABLE_NAME": table.table_name,
+        }
+        # Optional: comma-separated chat IDs the bot is allowed to operate in,
+        # set via cdk.json's "context" (not a secret, so safe to commit —
+        # unlike BOT_TOKEN/WEBHOOK_SECRET_TOKEN above). Left unset by default,
+        # same as MIN_PLAYERS/etc. — see CLAUDE.md.
+        if allowed_chat_ids := self.node.try_get_context("ALLOWED_CHAT_IDS"):
+            environment["ALLOWED_CHAT_IDS"] = allowed_chat_ids
+
         fn = lambda_.Function(
             self,
             "BotFunction",
@@ -34,11 +46,7 @@ class BotStack(Stack):
             code=lambda_.Code.from_asset(str(LAMBDA_BUILD_DIR)),
             timeout=Duration.seconds(30),
             memory_size=256,
-            environment={
-                "BOT_TOKEN": os.environ["BOT_TOKEN"],
-                "WEBHOOK_SECRET_TOKEN": os.environ["WEBHOOK_SECRET_TOKEN"],
-                "TABLE_NAME": table.table_name,
-            },
+            environment=environment,
         )
 
         table.grant_read_write_data(fn)

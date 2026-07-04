@@ -3,7 +3,12 @@ from telegram import (
     BotCommandScopeAllChatAdministrators,
     BotCommandScopeAllGroupChats,
 )
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    ChatMemberHandler,
+    CommandHandler,
+)
 
 from bot.config import BOT_TOKEN
 from bot.handlers import admin, player, setup, signup, skips
@@ -110,6 +115,9 @@ def build_application() -> Application:
     )
     application.add_handler(
         CallbackQueryHandler(setup.setupgroup_callback, pattern=r"^setupgroup:")
+    )
+    application.add_handler(
+        ChatMemberHandler(setup.guard_chat_membership, ChatMemberHandler.MY_CHAT_MEMBER)
     )
 
     return application

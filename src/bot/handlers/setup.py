@@ -1,10 +1,21 @@
-from telegram import Chat, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    Chat,
+    ChatMember,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Update,
+)
 from telegram.ext import ContextTypes
 
 from bot import db
+from bot.config import ALLOWED_CHAT_IDS
 from bot.services.months import WEEKDAY_NAMES, parse_weekday
 from bot.services.permissions import is_group_admin, require_group_admin
 from bot.services.scope import resolve_scope
+
+_JOINED_STATUSES = {ChatMember.MEMBER, ChatMember.ADMINISTRATOR}
+_NOT_JOINED_STATUSES = {ChatMember.LEFT, ChatMember.BANNED}
+_GROUP_CHAT_TYPES = {Chat.GROUP, Chat.SUPERGROUP}
 
 
 def _group_title(chat: Chat) -> str:
@@ -69,3 +80,29 @@ async def setupgroup_callback(
     text = _finish_setup(update.effective_chat, scope, weekday)
     await query.edit_message_text(text)
     await query.answer()
+
+
+async def guard_chat_membership(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Auto-leaves any group not in ALLOWED_CHAT_IDS as soon as the bot is added.
+    No-op when ALLOWED_CHAT_IDS is unset (no restriction configured)."""
+    if ALLOWED_CHAT_IDS is None:
+        return
+
+    chat = update.effective_chat
+    if chat.type not in _GROUP_CHAT_TYPES:
+        return
+
+    member_update = update.my_chat_member
+    just_joined = (
+        member_update.old_chat_member.status in _NOT_JOINED_STATUSES
+        and member_update.new_chat_member.status in _JOINED_STATUSES
+    )
+    if not just_joined or chat.id in ALLOWED_CHAT_IDS:
+        return
+
+    await context.bot.send_message(
+        chat.id, "This bot hasn't been authorized for this group. Leaving now."
+    )
+    await context.bot.leave_chat(chat.id)

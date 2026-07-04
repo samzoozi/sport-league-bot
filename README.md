@@ -47,7 +47,7 @@ aws dynamodb create-table \
 ## Running locally
 
 ```bash
-PYTHONPATH=src uv run python -m bot.local
+uv run python -m bot.local
 ```
 
 This runs the bot via long polling against the real Telegram API. Only one instance can poll at a time — stop any previous instance (`pkill -f "bot.local"`) before starting a new one, and restart after every code change (it doesn't hot-reload).
@@ -85,7 +85,7 @@ Then, for every deploy:
 ```bash
 uv run python scripts/build_lambda.py     # bundles dependencies into infra/lambda_build/, no Docker needed
 cd infra && cdk deploy
-PYTHONPATH=src uv run python scripts/set_webhook.py <function-url-from-deploy-output>
+uv run python scripts/set_webhook.py <function-url-from-deploy-output>
 ```
 
 `set_webhook.py` registers the deployed Function URL with Telegram and pushes the `/` command menus. Telegram only delivers updates via one mechanism at a time — once a webhook is registered, local long polling (`bot.local`) will start throwing `Conflict` errors (expected; it means the webhook took over).

@@ -13,4 +13,4 @@ echo "Deleting webhook (production will be offline until go_prod.sh is run again
 curl -s "https://api.telegram.org/bot${BOT_TOKEN}/deleteWebhook" | python3 -m json.tool
 
 echo "Starting local bot (Ctrl+C to stop)..."
-PYTHONPATH=src uv run python -m bot.local
+uv run python -m bot.local

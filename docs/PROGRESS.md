@@ -6,7 +6,7 @@ Status snapshot of `@HangarSportBot`, a multi-league Telegram bot for running a 
 
 ### Foundation
 - Project scaffolded with `uv`, Python 3.13, `python-telegram-bot` (async), `boto3`.
-- Local dev runs via long polling (`PYTHONPATH=src uv run python -m bot.local`) against a real dev DynamoDB table (`hangar-sport-bot-dev`, region `ca-central-1`).
+- Local dev runs via long polling (`uv run python -m bot.local`) against a real dev DynamoDB table (`hangar-sport-bot-dev`, region `ca-central-1`).
 - Single DynamoDB table (`db.py`) keyed by a "scope" string — `GROUP#<chat_id>`, or `GROUP#<chat_id>#TOPIC#<thread_id>` when inside a forum topic — for full data isolation between leagues, whether they're separate Telegram groups or separate topics within one forum group.
 - `ruff` (lint + format) and `pre-commit` configured; hook installed and passing.
 - `scripts/wipe_table.py` — dev-only helper to clear all data from the DynamoDB table for a fresh testing start. `scripts/delete_month.py` — narrower dev helper that removes just one month's squad/waitlist/skip records, leaving player profiles, balances, and transaction history untouched (unlike `/deletemonth`, works regardless of the month's status).

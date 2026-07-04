@@ -8,7 +8,7 @@ Lambda handler uses) never calls it, so this script does it explicitly once
 after every deploy.
 
 Usage:
-    PYTHONPATH=src uv run python scripts/set_webhook.py <function-url>
+    uv run python scripts/set_webhook.py <function-url>
 """
 
 import asyncio
@@ -29,8 +29,6 @@ async def main(url: str) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print(
-            "Usage: PYTHONPATH=src uv run python scripts/set_webhook.py <function-url>"
-        )
+        print("Usage: uv run python scripts/set_webhook.py <function-url>")
         sys.exit(1)
     asyncio.run(main(sys.argv[1]))

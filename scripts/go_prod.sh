@@ -20,4 +20,4 @@ if [ -z "$FUNCTION_URL" ]; then
 fi
 
 echo "Registering webhook: $FUNCTION_URL"
-PYTHONPATH=src uv run python scripts/set_webhook.py "$FUNCTION_URL"
+uv run python scripts/set_webhook.py "$FUNCTION_URL"

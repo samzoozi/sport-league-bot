@@ -75,7 +75,7 @@ There is no bot-specific admin list. `require_group_admin` checks live, via `get
 
 ### Resolving a "target" player from a command
 
-Commands like `/addplayer`, `/charge`, `/credit` need to resolve which player an admin means. `src/bot/services/users.py` supports three ways, in priority order: replying to the player's message, tapping their name from Telegram's mention picker (a `text_mention` entity — the only mechanism that works for players with no public `@username`), or typing a literal `@username` (only works if that player has already interacted with the bot, since a plain `@username` typed by hand carries no entity data for the bot to resolve).
+Commands like `/addtosquad`, `/charge`, `/credit` need to resolve which player an admin means. `src/bot/services/users.py` supports three ways, in priority order: replying to the player's message, tapping their name from Telegram's mention picker (a `text_mention` entity — the only mechanism that works for players with no public `@username`), or typing a literal `@username` (only works if that player has already interacted with the bot, since a plain `@username` typed by hand carries no entity data for the bot to resolve).
 
 `resolve_target_and_rest` (used by money commands that take extra args like an amount) is the version to use when there are positional arguments *after* the target — it must strip the mention's exact text span (via `entity.offset`/`entity.length`) from the leftover args rather than guessing token counts, since a mentioned display name can be multiple words.
 

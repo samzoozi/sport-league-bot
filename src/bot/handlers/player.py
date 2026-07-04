@@ -33,7 +33,7 @@ HELP_MESSAGE = (
     "/newmonth <YYYY-MM> <total_cost> [skip-dates...] — open signups for a month "
     "(e.g. /newmonth 2026-08 240 2026-08-03)\n"
     "/deletemonth <YYYY-MM> — delete an open (non-finalized) month\n"
-    "/addplayer, /removeplayer — reply to their message or use @username\n"
+    "/addtosquad, /removefromsquad — reply to their message or use @username\n"
     "/finalize [max_players] — lock the squad and charge everyone their share\n"
     "/charge @user <amount> <desc> — reply to their message or use @username\n"
     "/credit @user <amount> <desc> — reply to their message or use @username\n"

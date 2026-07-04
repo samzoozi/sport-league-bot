@@ -106,13 +106,13 @@ async def deletemonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 @require_group_admin
-async def addplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def addtosquad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
     scope = resolve_scope(update)
     target = resolve_target_user(update, context)
     if target is None:
         await update.effective_message.reply_text(
-            "Reply to their message with /addplayer, or run /addplayer @username "
+            "Reply to their message with /addtosquad, or run /addtosquad @username "
             "for someone who has already registered."
         )
         return
@@ -139,13 +139,13 @@ async def addplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 @require_group_admin
-async def removeplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def removefromsquad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
     scope = resolve_scope(update)
     target = resolve_target_user(update, context)
     if target is None:
         await update.effective_message.reply_text(
-            "Reply to their message with /removeplayer, or run /removeplayer @username."
+            "Reply to their message with /removefromsquad, or run /removefromsquad @username."
         )
         return
 

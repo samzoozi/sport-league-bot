@@ -25,14 +25,14 @@ Status snapshot of `@HangarSportBot`, a multi-league Telegram bot for running a 
 ### Month lifecycle
 - `/newmonth <YYYY-MM> <total_cost> [skip-dates...]` — computes game dates for the group's fixed weekday, posts a signup card with **Join / Decline** inline buttons that edit the card live. Join always succeeds during open signup (uncapped) — capacity is enforced solely at `/finalize`.
 - `/squad` — re-post the current open month's signup card.
-- `/addplayer` / `/removeplayer` — admin-only, resolve the target via reply-to-message, tap-to-mention picker, or `@username` (only for players who've already interacted with the bot). Intentionally only work on **open** (non-finalized) months — see "Known limitation" below.
+- `/addtosquad` / `/removefromsquad` — admin-only, resolve the target via reply-to-message, tap-to-mention picker, or `@username` (only for players who've already interacted with the bot). Intentionally only work on **open** (non-finalized) months — see "Known limitation" below.
 - `/deletemonth <YYYY-MM>` — admin-only, deletes an open month's squad. Blocked for finalized months (charges already posted).
 - **Multiple months can coexist** (e.g. next month's squad gets finalized while this month's games are still being played) — `services/months.current_month` picks whichever finalized month actually owns the next unresolved game, not whichever was created most recently.
 - The signup card visibly changes on `/finalize` (locked state, real charged amount, buttons removed) and is re-posted as a fresh, visible message via `post_signup_card` — not just silently edited in place, which could go unnoticed if the original card had scrolled out of view.
 
 ### Ledger
 - `/finalize [max_players]` — locks the squad (default cap from `MAX_PLAYERS`, sorted by true join order; anyone over the cap is simply removed, not waitlisted), splits `total_cost` evenly (`services/months.split_cost`, **truncated** to cents, not rounded — deliberate), and charges each remaining player via an atomic DynamoDB transaction (`db.add_transaction`).
-- `/charge`, `/credit`, `/paid`, `/balances` — same target-resolution rules as `/addplayer`.
+- `/charge`, `/credit`, `/paid`, `/balances` — same target-resolution rules as `/addtosquad`.
 - `/chargeall <YYYY-MM> <amount> <desc>` / `/creditall <YYYY-MM> <amount> <desc>` — admin-only, applies the same flat amount to every player registered in that month's squad in one shot.
 - All verified live end-to-end, including two real boto3 bugs found and fixed during testing (see `CLAUDE.md` → "Two boto3 client gotchas").
 
@@ -62,4 +62,4 @@ Waitlist and skip are both scoped to the **next match** (`services/months.next_g
 `cdk bootstrap` (one-time) → `scripts/build_lambda.py` → `cdk deploy` → `scripts/set_webhook.py <function-url>` → stop local `bot.local` (Telegram only delivers via one mechanism at a time — a registered webhook will make local polling start throwing `Conflict`, which is expected) → smoke-test the full command set against the deployed Lambda in the real group, checking CloudWatch Logs if anything doesn't respond.
 
 ### Known limitation (accepted, not a bug)
-`/addplayer`, `/removeplayer`, and `/deletemonth` only work on **open** (non-finalized) months by design — this was an explicit decision because allowing squad edits after `/finalize` would silently desync balances from the actual squad unless every edit also posted a matching charge/refund transaction, which was decided against for now. Post-finalize squad corrections currently have to be handled manually via `/charge`/`/credit`/`/chargeall`/`/creditall`.
+`/addtosquad`, `/removefromsquad`, and `/deletemonth` only work on **open** (non-finalized) months by design — this was an explicit decision because allowing squad edits after `/finalize` would silently desync balances from the actual squad unless every edit also posted a matching charge/refund transaction, which was decided against for now. Post-finalize squad corrections currently have to be handled manually via `/charge`/`/credit`/`/chargeall`/`/creditall`.

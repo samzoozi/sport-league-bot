@@ -29,8 +29,8 @@ ADMIN_COMMANDS = PLAYER_COMMANDS + [
     BotCommand(
         "deletemonth", "Delete an open (non-finalized) month: /deletemonth <YYYY-MM>"
     ),
-    BotCommand("addplayer", "Add a player to the squad"),
-    BotCommand("removeplayer", "Remove a player from the squad"),
+    BotCommand("addtosquad", "Add a player to the squad"),
+    BotCommand("removefromsquad", "Remove a player from the squad"),
     BotCommand("finalize", "Lock the squad and charge everyone their share"),
     BotCommand("charge", "Charge a player: /charge @user <amount> <desc>"),
     BotCommand("credit", "Credit a player: /credit @user <amount> <desc>"),
@@ -80,8 +80,8 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("setupgroup", setup.setupgroup))
     application.add_handler(CommandHandler("newmonth", admin.newmonth))
     application.add_handler(CommandHandler("deletemonth", admin.deletemonth))
-    application.add_handler(CommandHandler("addplayer", admin.addplayer))
-    application.add_handler(CommandHandler("removeplayer", admin.removeplayer))
+    application.add_handler(CommandHandler("addtosquad", admin.addtosquad))
+    application.add_handler(CommandHandler("removefromsquad", admin.removefromsquad))
     application.add_handler(CommandHandler("finalize", admin.finalize))
     application.add_handler(CommandHandler("charge", admin.charge))
     application.add_handler(CommandHandler("credit", admin.credit))

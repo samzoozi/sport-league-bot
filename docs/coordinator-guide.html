@@ -282,13 +282,13 @@
     e.g. someone tells you in person they want in. Two ways to point the bot at the right person:
   </p>
   <ul>
-    <li><strong>Reply</strong> to one of their messages with <code>/addplayer</code> or <code>/removeplayer</code>.</li>
+    <li><strong>Reply</strong> to one of their messages with <code>/addtosquad</code> or <code>/removefromsquad</code>.</li>
     <li><strong>Tag them</strong> by typing <code>@</code> and picking their name from Telegram's own
       suggestion popup (not by typing out an <code>@username</code> yourself — that only works if they
       already have a public Telegram username <em>and</em> have talked to the bot before).</li>
   </ul>
   <p>
-    <code>/addplayer</code> works even for someone who has never interacted with the bot at all — it
+    <code>/addtosquad</code> works even for someone who has never interacted with the bot at all — it
     registers a placeholder profile for them automatically (they just won't have an e-transfer email on
     file until they run <code>/setemail</code> themselves).
   </p>
@@ -314,7 +314,7 @@
     <strong>Finalizing is final</strong>
     Once finalized, players can no longer join or leave via the card, and you can't re-run
     <code>/newmonth</code> or <code>/deletemonth</code> for that month. If you need to adjust the squad
-    or balances afterward, use <code>/addplayer</code>/<code>/removeplayer</code> won't work anymore —
+    or balances afterward, use <code>/addtosquad</code>/<code>/removefromsquad</code> won't work anymore —
     handle corrections manually with <code>/charge</code>/<code>/credit</code> (see "Managing money" below).
   </div>
 </section>
@@ -356,9 +356,15 @@
   <h3>Checking who's playing</h3>
   <table class="cmd-table">
     <tr><th>Command</th><th>What it shows</th></tr>
-    <tr><td><code>/nextgame</code></td><td>The next game's date and exactly who's confirmed to play (accounting for skips/replacements).</td></tr>
+    <tr><td><code>/nextgame</code></td><td>The next game's date and the <strong>full original squad</strong> — not just who's confirmed. Each person shows as <code>✅ Name</code> if they're playing (themselves or via a replacement, shown as <code>✅ Name → Replacement</code>), or <code>❌ Name (no replacement yet)</code> if they skipped and nobody's taken their spot yet.</td></tr>
     <tr><td><code>/games</code></td><td>The whole month's schedule, with a confirmed headcount per date.</td></tr>
   </table>
+  <div class="card tip">
+    <strong>Nobody just disappears from the list</strong>
+    Even if someone skips and no replacement has shown up yet, they still appear on <code>/nextgame</code>
+    — marked ❌ — instead of silently vanishing from the roster. That makes it obvious at a glance who
+    still needs covering.
+  </div>
   <div class="card tip">
     <strong>Rolls over automatically</strong>
     The day after a game happens, "the next game" naturally becomes the following date — there's nothing
@@ -397,7 +403,7 @@
     <tr><td><code>/balance</code></td><td>Shows their own balance and recent transactions.</td></tr>
     <tr><td><code>/skip</code></td><td>Skips the next game and confirms with a button — the bot automatically offers the spot to the waitlist (only works once that month is finalized).</td></tr>
     <tr><td><code>/waitlist</code></td><td>Shows who's currently on the waitlist for the next game — anyone can check, no registration needed.</td></tr>
-    <tr><td><code>/addtowaitlist</code></td><td>Joins the waitlist for the next game (only works once that month is finalized) — if a spot is already open and unfilled, they're offered it immediately instead of being queued.</td></tr>
+    <tr><td><code>/addtowaitlist</code></td><td>Joins the waitlist for the next game (only works once that month is finalized) — if a spot is already open and unfilled, they're offered it immediately instead of being queued. A squad member can use this too, as long as they've already skipped the next game themselves (they can't hold two spots at once).</td></tr>
     <tr><td><code>/leavewaitlist</code></td><td>Leaves the waitlist for the next game, if they no longer want the spot.</td></tr>
     <tr><td><code>/help</code></td><td>Shows the full command list, split into player and admin sections.</td></tr>
   </table>
@@ -429,7 +435,7 @@
   <p>
     No — Telegram doesn't let bots see a group's full member list for privacy reasons. Registration
     happens per player (they run <code>/register</code> themselves), though you can register someone on
-    their behalf via <code>/addplayer</code> even if they've never messaged the bot.
+    their behalf via <code>/addtosquad</code> even if they've never messaged the bot.
   </p>
 
   <h3>What if a player has no e-transfer email on file?</h3>
@@ -448,7 +454,7 @@
 
   <h3>Can I edit the squad after finalizing?</h3>
   <p>
-    Not via <code>/addplayer</code>/<code>/removeplayer</code> — those are deliberately locked out once a
+    Not via <code>/addtosquad</code>/<code>/removefromsquad</code> — those are deliberately locked out once a
     month is finalized, since squad changes need matching balance changes to stay consistent. Use
     <code>/charge</code>/<code>/credit</code> to make manual corrections instead.
   </p>
@@ -457,6 +463,14 @@
   <p>
     Not in one step — <code>/skip</code> only ever targets the single next game. If they know they'll
     miss several games, they'd run <code>/skip</code> again once that date rolls over to become "next."
+  </p>
+
+  <h3>Can someone who's skipped also grab a different open spot?</h3>
+  <p>
+    Yes — once they've skipped the next game themselves, they're no longer counted as playing, so
+    <code>/addtowaitlist</code> works for them just like it would for anyone else. They can't end up
+    holding two spots at once, though: if they're already covering another skipped spot, a further
+    attempt to grab yet another one is blocked.
   </p>
 </section>
 
@@ -468,7 +482,7 @@
     <tr><td><code>/setupgroup</code></td><td>One-time setup — tap a weekday, or <code>/setupgroup &lt;weekday&gt;</code></td></tr>
     <tr><td><code>/newmonth</code></td><td><code>/newmonth &lt;YYYY-MM&gt; &lt;total_cost&gt; [skip-dates...]</code></td></tr>
     <tr><td><code>/deletemonth</code></td><td><code>/deletemonth &lt;YYYY-MM&gt;</code> — open months only</td></tr>
-    <tr><td><code>/addplayer</code> / <code>/removeplayer</code></td><td>Reply to their message, or tag them — open months only</td></tr>
+    <tr><td><code>/addtosquad</code> / <code>/removefromsquad</code></td><td>Reply to their message, or tag them — open months only</td></tr>
     <tr><td><code>/finalize</code></td><td><code>/finalize [max_players]</code></td></tr>
     <tr><td><code>/charge</code> / <code>/credit</code></td><td><code>&lt;amount&gt; &lt;desc&gt;</code> — reply or tag one player</td></tr>
     <tr><td><code>/chargeall</code> / <code>/creditall</code></td><td><code>&lt;YYYY-MM&gt; &lt;amount&gt; &lt;desc&gt;</code> — whole squad</td></tr>

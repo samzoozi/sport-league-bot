@@ -79,10 +79,10 @@ def game_card(
     for entry in roster:
         registrant_name = name_of(entry["registrant_id"])
         if not entry["skipped"]:
-            row = registrant_name
+            row = f"✅ {registrant_name}"
             count += 1
         elif entry["replacement_id"] is not None:
-            row = f"❌ {registrant_name} → {name_of(entry['replacement_id'])}"
+            row = f"✅ {registrant_name} → {name_of(entry['replacement_id'])}"
             count += 1
         else:
             row = f"❌ {registrant_name} (no replacement yet)"

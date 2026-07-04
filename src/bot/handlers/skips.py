@@ -2,7 +2,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from bot import db
-from bot.services.attendance import attendees_for_date
+from bot.services.attendance import attendees_for_date, game_roster
+from bot.services.cards import game_card
 from bot.services.mentions import mention_text_and_entities
 from bot.services.months import current_month, next_game_date, split_cost
 from bot.services.permissions import require_group_setup
@@ -62,6 +63,24 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+async def post_game_card(
+    bot,
+    scope: str,
+    chat_id: int,
+    thread_id: int | None,
+    month: str,
+    weekday: str,
+    date_str: str,
+) -> None:
+    roster = game_roster(scope, month, date_str)
+    players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
+    await bot.send_message(
+        chat_id,
+        game_card(date_str, weekday, roster, players_by_id),
+        message_thread_id=thread_id,
+    )
+
+
 async def skip_pick_callback(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
@@ -102,6 +121,9 @@ async def skip_pick_callback(
     await query.answer()
 
     await offer_next(context.bot, scope, chat_id, thread_id, date_str, owner_id)
+    await post_game_card(
+        context.bot, scope, chat_id, thread_id, month, month_meta["weekday"], date_str
+    )
 
 
 async def offer_next(
@@ -243,3 +265,13 @@ async def replace_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         f"✅ {candidate['name']} is in for {date_str}!{amount_line}"
     )
     await query.answer()
+
+    await post_game_card(
+        context.bot,
+        scope,
+        chat_id,
+        thread_id,
+        month_meta["month"],
+        month_meta["weekday"],
+        date_str,
+    )

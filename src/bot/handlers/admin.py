@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 from bot import db
 from bot.config import MAX_PLAYERS
 from bot.handlers.signup import post_signup_card, refresh_signup_message
+from bot.handlers.skips import post_game_card
 from bot.services.attendance import attendees_for_date
 from bot.services.months import (
     game_dates_for_month,
@@ -12,7 +13,7 @@ from bot.services.months import (
     split_cost,
 )
 from bot.services.permissions import require_group_admin, require_group_setup
-from bot.services.scope import resolve_scope
+from bot.services.scope import resolve_scope, topic_thread_id
 from bot.services.users import resolve_target_and_rest, resolve_target_user
 
 NO_BALANCE_CHANGE_WARNING = (
@@ -176,6 +177,8 @@ async def removefromsquad(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 @require_group_admin
 async def addplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
+    chat_id = update.effective_chat.id
+    thread_id = topic_thread_id(update)
     target, rest = resolve_target_and_rest(update, context)
     if target is None or not rest:
         await update.effective_message.reply_text(
@@ -210,11 +213,16 @@ async def addplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(
         f"Added {target['name']} to {game_date}. {NO_BALANCE_CHANGE_WARNING}"
     )
+    await post_game_card(
+        context.bot, scope, chat_id, thread_id, month, month_meta["weekday"], game_date
+    )
 
 
 @require_group_admin
 async def removeplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
+    chat_id = update.effective_chat.id
+    thread_id = topic_thread_id(update)
     target, rest = resolve_target_and_rest(update, context)
     if target is None or not rest:
         await update.effective_message.reply_text(
@@ -262,6 +270,9 @@ async def removeplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.effective_message.reply_text(
         f"Removed {target['name']} from {game_date}. {NO_BALANCE_CHANGE_WARNING} "
         "This does not offer the spot to the waitlist."
+    )
+    await post_game_card(
+        context.bot, scope, chat_id, thread_id, month, month_meta["weekday"], game_date
     )
 
 

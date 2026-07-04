@@ -199,6 +199,20 @@ async def replace_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper_id)
         return
 
+    still_on_waitlist = any(
+        w["user_id"] == candidate_id for w in db.list_waitlist(scope, date_str)
+    )
+    if not still_on_waitlist:
+        await query.answer(
+            "You left the waitlist for this date — the offer is no longer valid.",
+            show_alert=True,
+        )
+        await query.edit_message_text(
+            query.message.text + "\n\n(no longer available — you left the waitlist)"
+        )
+        await offer_next(context.bot, scope, chat_id, thread_id, date_str, skipper_id)
+        return
+
     if candidate_id in attendees_for_date(scope, month_meta["month"], date_str):
         await query.answer(
             "You're already playing this game via a different spot.", show_alert=True

@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from bot import db
+from bot.handlers.admin import removeplayer
 from bot.handlers.skips import replace_callback, skip_pick_callback
 
 SCOPE = "GROUP#-1009876543210"
@@ -63,3 +64,38 @@ async def test_skip_after_accepting_own_replacement_reopens_the_skip():
     skip = db.get_skip(SCOPE, DATE, 2)
     assert skip["status"] == "open"
     assert skip["replacement_id"] is None
+
+
+async def test_removeplayer_offers_the_vacated_spot_to_the_waitlist():
+    _setup_squad()
+    db.upsert_player(SCOPE, 3, "Waitlist Player", None, "p3@example.com")
+    db.add_waitlist(SCOPE, DATE, 3)
+
+    update = SimpleNamespace(
+        effective_chat=SimpleNamespace(id=-1009876543210, type="group"),
+        effective_message=SimpleNamespace(
+            reply_to_message=SimpleNamespace(
+                from_user=SimpleNamespace(id=2, full_name="Afsaneh", username=None)
+            ),
+            entities=None,
+            is_topic_message=False,
+            reply_text=AsyncMock(),
+        ),
+        effective_user=SimpleNamespace(id=1),
+    )
+    context = SimpleNamespace(
+        args=[DATE],
+        bot=SimpleNamespace(
+            send_message=AsyncMock(),
+            get_chat_member=AsyncMock(return_value=SimpleNamespace(status="creator")),
+        ),
+    )
+
+    await removeplayer(update, context)
+
+    # Afsaneh's spot is marked open, and — unlike the old silent-removal
+    # behavior — the waitlisted player (3) gets offered it directly, the
+    # same way a real /skip would.
+    assert db.get_skip(SCOPE, DATE, 2)["status"] == "open"
+    offer_texts = [call.args[1] for call in context.bot.send_message.await_args_list]
+    assert any("you're up" in text.lower() for text in offer_texts)

@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 from bot import db
 from bot.config import MAX_PLAYERS
 from bot.handlers.signup import post_signup_card, refresh_signup_message
-from bot.handlers.skips import post_game_card
+from bot.handlers.skips import offer_next, post_game_card
 from bot.services.attendance import attendees_for_date
 from bot.services.months import (
     game_dates_for_month,
@@ -253,6 +253,7 @@ async def removeplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
 
+    owner_id = None
     if db.get_extra_attendee(scope, game_date, user_id) is not None:
         db.remove_extra_attendee(scope, game_date, user_id)
     elif (
@@ -260,17 +261,18 @@ async def removeplayer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         and db.get_skip(scope, game_date, user_id) is None
     ):
         db.add_skip(scope, game_date, user_id)
+        owner_id = user_id
     else:
         occupied = db.get_occupied_skip(scope, game_date, user_id)
         if occupied is not None:
-            db.reopen_skip(
-                scope, game_date, int(occupied["user_id"]), vacated_by=user_id
-            )
+            owner_id = int(occupied["user_id"])
+            db.reopen_skip(scope, game_date, owner_id, vacated_by=user_id)
 
     await update.effective_message.reply_text(
-        f"Removed {target['name']} from {game_date}. {NO_BALANCE_CHANGE_WARNING} "
-        "This does not offer the spot to the waitlist."
+        f"Removed {target['name']} from {game_date}. {NO_BALANCE_CHANGE_WARNING}"
     )
+    if owner_id is not None:
+        await offer_next(context.bot, scope, chat_id, thread_id, game_date, owner_id)
     await post_game_card(
         context.bot, scope, chat_id, thread_id, month, month_meta["weekday"], game_date
     )

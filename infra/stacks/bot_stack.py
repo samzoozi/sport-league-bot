@@ -31,10 +31,11 @@ class BotStack(Stack):
             "TABLE_NAME": table.table_name,
         }
         # Optional: comma-separated chat IDs the bot is allowed to operate in,
-        # set via cdk.json's "context" (not a secret, so safe to commit —
-        # unlike BOT_TOKEN/WEBHOOK_SECRET_TOKEN above). Left unset by default,
-        # same as MIN_PLAYERS/etc. — see CLAUDE.md.
-        if allowed_chat_ids := self.node.try_get_context("ALLOWED_CHAT_IDS"):
+        # set via .env like BOT_TOKEN/WEBHOOK_SECRET_TOKEN above. Chat IDs
+        # aren't secret, but they identify which real groups use this
+        # deployment, so we keep them out of the committed cdk.json anyway.
+        # Left unset by default, same as MIN_PLAYERS/etc. — see CLAUDE.md.
+        if allowed_chat_ids := os.environ.get("ALLOWED_CHAT_IDS"):
             environment["ALLOWED_CHAT_IDS"] = allowed_chat_ids
 
         fn = lambda_.Function(

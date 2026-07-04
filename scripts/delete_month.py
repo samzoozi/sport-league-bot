@@ -8,13 +8,12 @@ already posted for it stay on players' balances; only the squad/game records
 are removed, so the month key is free to be reused with /newmonth again.
 
 Usage:
-    uv run scripts/delete_month.py 2026-07                      # auto-detects the scope if only one match
-    uv run scripts/delete_month.py 2026-07 --scope "GROUP#-123456789"
-    uv run scripts/delete_month.py 2026-07 --yes                 # skip the y/N prompt
+    uv run scripts/delete_month.py dev -5470494442 2026-07
+    uv run scripts/delete_month.py prod -5470494442 2026-07 --yes
+    uv run scripts/delete_month.py dev "GROUP#-5470494442#TOPIC#123" 2026-07
 """
 
 import argparse
-import os
 import sys
 
 import boto3
@@ -22,60 +21,43 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TABLE_NAME = os.environ.get("TABLE_NAME", "hangar-sport-bot-dev")
-
-
-def find_scopes_with_month(table, month: str) -> list[str]:
-    scopes = []
-    scan_kwargs = {
-        "FilterExpression": "SK = :sk",
-        "ExpressionAttributeValues": {":sk": f"MONTH#{month}#META"},
-    }
-    while True:
-        resp = table.scan(**scan_kwargs)
-        scopes.extend(item["PK"] for item in resp.get("Items", []))
-        if "LastEvaluatedKey" not in resp:
-            break
-        scan_kwargs["ExclusiveStartKey"] = resp["LastEvaluatedKey"]
-    return scopes
+TABLE_NAMES = {
+    "dev": "hangar-sport-bot-dev",
+    "prod": "hangar-sport-bot",
+}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("month", help="Month key, e.g. 2026-07")
+    parser.add_argument("table", choices=TABLE_NAMES, help="which table to target")
     parser.add_argument(
-        "--scope",
-        help='PK to target, e.g. "GROUP#-123456789". Auto-detected if omitted and unambiguous.',
+        "group_id",
+        help='the group\'s chat_id (e.g. "-5470494442"), or a full scope '
+        '(e.g. "GROUP#-5470494442#TOPIC#123") to target one forum topic',
     )
+    parser.add_argument("month", help="Month key, e.g. 2026-07")
     parser.add_argument(
         "--yes", action="store_true", help="skip the y/N confirmation prompt"
     )
     args = parser.parse_args()
 
-    table = boto3.resource("dynamodb").Table(TABLE_NAME)
-
-    scope = args.scope
-    if scope is None:
-        matches = find_scopes_with_month(table, args.month)
-        if not matches:
-            print(f"No month '{args.month}' found in table '{TABLE_NAME}'.")
-            return
-        if len(matches) > 1:
-            print(
-                f"Month '{args.month}' exists in multiple scopes — re-run with --scope:"
-            )
-            for s in matches:
-                print(f"  {s}")
-            sys.exit(1)
-        scope = matches[0]
+    table_name = TABLE_NAMES[args.table]
+    scope = (
+        args.group_id
+        if args.group_id.startswith("GROUP#")
+        else f"GROUP#{args.group_id}"
+    )
+    table = boto3.resource("dynamodb").Table(table_name)
 
     month_item = table.get_item(
         Key={"PK": scope, "SK": f"MONTH#{args.month}#META"}
     ).get("Item")
     if month_item is None:
-        print(f"No month '{args.month}' found for scope '{scope}'.")
+        print(
+            f"No month '{args.month}' found for scope '{scope}' in table '{table_name}'."
+        )
         return
 
     game_dates = month_item.get("game_dates", [])
@@ -98,6 +80,7 @@ def main() -> None:
             )
             keys_to_delete += resp.get("Items", [])
 
+    print(f"Table: {table_name}")
     print(f"Scope: {scope}")
     print(
         f"About to delete {len(keys_to_delete)} item(s) for month '{args.month}' "

@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes
 from bot import db
 from bot.handlers.signup import post_signup_card
 from bot.handlers.skips import offer_next
-from bot.services.attendance import attendees_for_date
+from bot.services.attendance import attendees_for_date, game_roster
 from bot.services.cards import game_card
 from bot.services.months import current_month, next_game_date
 from bot.services.permissions import require_group_setup
@@ -317,14 +317,11 @@ async def nextgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    attendee_ids = attendees_for_date(scope, month_meta["month"], next_date)
+    roster = game_roster(scope, month_meta["month"], next_date)
     players_by_id = {p["user_id"]: p for p in db.list_players(scope)}
-    names = [
-        players_by_id.get(uid, {}).get("name", f"user {uid}") for uid in attendee_ids
-    ]
 
     await update.effective_message.reply_text(
-        game_card(next_date, month_meta["weekday"], names)
+        game_card(next_date, month_meta["weekday"], roster, players_by_id)
     )
 
 

@@ -65,8 +65,30 @@ def signup_card(
     return "\n".join(lines), keyboard
 
 
-def game_card(game_date: str, weekday: str, names: list[str]) -> str:
-    count = len(names)
+def game_card(
+    game_date: str,
+    weekday: str,
+    roster: list[dict],
+    players_by_id: dict[int, dict],
+) -> str:
+    def name_of(user_id: int) -> str:
+        return players_by_id.get(user_id, {}).get("name", f"user {user_id}")
+
+    rows = []
+    count = 0
+    for entry in roster:
+        registrant_name = name_of(entry["registrant_id"])
+        if not entry["skipped"]:
+            row = registrant_name
+            count += 1
+        elif entry["replacement_id"] is not None:
+            row = f"❌ {registrant_name} → {name_of(entry['replacement_id'])}"
+            count += 1
+        else:
+            row = f"❌ {registrant_name} (no replacement yet)"
+        rows.append((registrant_name, row))
+    rows.sort(key=lambda r: r[0])
+
     if count >= STANDARD_PLAYERS:
         status = "✅ Game is on!"
     elif count >= MIN_PLAYERS:
@@ -80,5 +102,5 @@ def game_card(game_date: str, weekday: str, names: list[str]) -> str:
         "",
         f"👥 Players ({count}/{MAX_PLAYERS}):",
     ]
-    lines += [f"{i}. {name}" for i, name in enumerate(sorted(names), 1)] or ["(none)"]
+    lines += [f"{i}. {row}" for i, (_, row) in enumerate(rows, 1)] or ["(none)"]
     return "\n".join(lines)

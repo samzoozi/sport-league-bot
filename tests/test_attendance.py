@@ -1,5 +1,5 @@
 from bot import db
-from bot.services.attendance import attendees_for_date
+from bot.services.attendance import attendees_for_date, game_roster
 
 SCOPE = "GROUP#-1009876543210"
 MONTH = "2026-08"
@@ -23,6 +23,28 @@ def test_attendees_excludes_open_skip_with_no_replacement():
     db.add_skip(SCOPE, DATE, 2)
     attendees = attendees_for_date(SCOPE, MONTH, DATE)
     assert set(attendees) == {1, 3}
+
+
+def test_roster_keeps_every_registrant_even_when_skipped():
+    _setup_squad()
+    db.add_skip(SCOPE, DATE, 2)
+
+    roster = game_roster(SCOPE, MONTH, DATE)
+    by_id = {entry["registrant_id"]: entry for entry in roster}
+    assert set(by_id) == {1, 2, 3}
+    assert by_id[1] == {"registrant_id": 1, "skipped": False, "replacement_id": None}
+    assert by_id[2] == {"registrant_id": 2, "skipped": True, "replacement_id": None}
+
+
+def test_roster_shows_replacement_for_a_filled_skip():
+    _setup_squad()
+    db.upsert_player(SCOPE, 4, "Waitlist Player", None, "p4@example.com")
+    db.add_skip(SCOPE, DATE, 2)
+    db.set_skip_replaced(SCOPE, DATE, 2, 4)
+
+    roster = game_roster(SCOPE, MONTH, DATE)
+    by_id = {entry["registrant_id"]: entry for entry in roster}
+    assert by_id[2] == {"registrant_id": 2, "skipped": True, "replacement_id": 4}
 
 
 def test_attendees_substitutes_replacement_for_skipper():

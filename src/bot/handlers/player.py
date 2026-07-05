@@ -8,7 +8,7 @@ from bot.handlers.signup import post_signup_card
 from bot.handlers.skips import offer_next
 from bot.services.attendance import attendees_for_date, game_roster
 from bot.services.cards import game_card
-from bot.services.months import current_month, next_game_date
+from bot.services.months import current_month, next_game_date, today_for_scope
 from bot.services.permissions import require_group_setup
 from bot.services.scope import resolve_scope, topic_thread_id
 
@@ -30,6 +30,8 @@ HELP_MESSAGE = (
     "/games — this month's game schedule\n\n"
     "Admin commands:\n"
     "/setupgroup — one-time setup, tap a weekday (or /setupgroup <weekday> to skip the buttons)\n"
+    "/settimezone — set this league's timezone, tap one (or /settimezone <name>, "
+    "e.g. Eastern) — defaults to UTC until set\n"
     "/newmonth <YYYY-MM> <total_cost> [skip-dates...] — open signups for a month "
     "(e.g. /newmonth 2026-08 240 2026-08-03)\n"
     "/deletemonth <YYYY-MM> — delete an open (non-finalized) month\n"
@@ -146,7 +148,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 @require_group_setup
 async def squad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
-    month_meta = current_month(db.list_months(scope))
+    month_meta = current_month(db.list_months(scope), today=today_for_scope(scope))
     if month_meta is None:
         await update.effective_message.reply_text("No active month right now.")
         return
@@ -159,14 +161,15 @@ async def squad(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 @require_group_setup
 async def waitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
-    month_meta = current_month(db.list_months(scope))
+    today = today_for_scope(scope)
+    month_meta = current_month(db.list_months(scope), today=today)
     if month_meta is None or month_meta["status"] != "finalized":
         await update.effective_message.reply_text(
             "Waitlist requests only apply once a month has been finalized."
         )
         return
 
-    next_date = next_game_date(month_meta["game_dates"])
+    next_date = next_game_date(month_meta["game_dates"], today=today)
     if next_date is None:
         await update.effective_message.reply_text(
             f"No more games scheduled for {month_meta['month']}."
@@ -201,14 +204,15 @@ async def addtowaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
         return
 
-    month_meta = current_month(db.list_months(scope))
+    today = today_for_scope(scope)
+    month_meta = current_month(db.list_months(scope), today=today)
     if month_meta is None or month_meta["status"] != "finalized":
         await update.effective_message.reply_text(
             "Waitlist requests only apply once a month has been finalized."
         )
         return
 
-    next_date = next_game_date(month_meta["game_dates"])
+    next_date = next_game_date(month_meta["game_dates"], today=today)
     if next_date is None:
         await update.effective_message.reply_text(
             f"No more games scheduled for {month_meta['month']}."
@@ -275,14 +279,15 @@ async def leavewaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
         return
 
-    month_meta = current_month(db.list_months(scope))
+    today = today_for_scope(scope)
+    month_meta = current_month(db.list_months(scope), today=today)
     if month_meta is None or month_meta["status"] != "finalized":
         await update.effective_message.reply_text(
             "Waitlist requests only apply once a month has been finalized."
         )
         return
 
-    next_date = next_game_date(month_meta["game_dates"])
+    next_date = next_game_date(month_meta["game_dates"], today=today)
     if next_date is None:
         await update.effective_message.reply_text(
             f"No more games scheduled for {month_meta['month']}."
@@ -304,12 +309,13 @@ async def leavewaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 @require_group_setup
 async def nextgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
-    month_meta = current_month(db.list_months(scope))
+    today = today_for_scope(scope)
+    month_meta = current_month(db.list_months(scope), today=today)
     if month_meta is None or month_meta["status"] != "finalized":
         await update.effective_message.reply_text("No finalized squad right now.")
         return
 
-    next_date = next_game_date(month_meta["game_dates"])
+    next_date = next_game_date(month_meta["game_dates"], today=today)
     if next_date is None:
         await update.effective_message.reply_text(
             f"No more games scheduled for {month_meta['month']}."
@@ -327,7 +333,7 @@ async def nextgame(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 @require_group_setup
 async def games(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     scope = resolve_scope(update)
-    month_meta = current_month(db.list_months(scope))
+    month_meta = current_month(db.list_months(scope), today=today_for_scope(scope))
     if month_meta is None:
         await update.effective_message.reply_text("No active month right now.")
         return

@@ -9,7 +9,13 @@ from telegram.ext import ContextTypes
 
 from bot import db
 from bot.config import ALLOWED_CHAT_IDS
-from bot.services.months import WEEKDAY_NAMES, parse_weekday
+from bot.services.months import (
+    TIMEZONE_CHOICES,
+    TIMEZONE_LABELS,
+    WEEKDAY_NAMES,
+    parse_timezone_choice,
+    parse_weekday,
+)
 from bot.services.permissions import is_group_admin, require_group_admin
 from bot.services.scope import resolve_scope
 
@@ -79,6 +85,68 @@ async def setupgroup_callback(
 
     text = _finish_setup(update.effective_chat, scope, weekday)
     await query.edit_message_text(text)
+    await query.answer()
+
+
+@require_group_admin
+async def settimezone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    scope = resolve_scope(update)
+    if db.get_group(scope) is None:
+        await update.effective_message.reply_text(
+            "This group isn't set up yet. Run /setupgroup first."
+        )
+        return
+
+    if context.args:
+        key = context.args[0]
+        tz_name = parse_timezone_choice(key)
+        if tz_name is None:
+            await update.effective_message.reply_text(
+                f"Unknown timezone '{key}'. Use one of: {', '.join(TIMEZONE_CHOICES)}"
+            )
+            return
+        db.set_timezone(scope, tz_name)
+        canonical_key = next(k for k in TIMEZONE_CHOICES if k.lower() == key.lower())
+        await update.effective_message.reply_text(
+            f"Timezone set to {TIMEZONE_LABELS[canonical_key]} ({tz_name})."
+        )
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    TIMEZONE_LABELS[key], callback_data=f"settimezone:{key}"
+                )
+            ]
+            for key in TIMEZONE_CHOICES
+        ]
+    )
+    await update.effective_message.reply_text(
+        "Which timezone should game dates use?", reply_markup=keyboard
+    )
+
+
+async def settimezone_callback(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    query = update.callback_query
+    _, key = query.data.split(":", 1)
+
+    if not await is_group_admin(update, context):
+        await query.answer("Only group admins can do that.", show_alert=True)
+        return
+
+    scope = resolve_scope(update)
+    if db.get_group(scope) is None:
+        await query.answer("Run /setupgroup first.", show_alert=True)
+        return
+
+    tz_name = TIMEZONE_CHOICES[key]
+    db.set_timezone(scope, tz_name)
+    await query.edit_message_text(
+        f"Timezone set to {TIMEZONE_LABELS[key]} ({tz_name})."
+    )
     await query.answer()
 
 

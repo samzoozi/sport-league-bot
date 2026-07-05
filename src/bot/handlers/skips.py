@@ -5,7 +5,12 @@ from bot import db
 from bot.services.attendance import attendees_for_date, game_roster
 from bot.services.cards import game_card
 from bot.services.mentions import mention_text_and_entities
-from bot.services.months import current_month, next_game_date, split_cost
+from bot.services.months import (
+    current_month,
+    next_game_date,
+    split_cost,
+    today_for_scope,
+)
 from bot.services.permissions import require_group_setup
 from bot.services.scope import resolve_scope, topic_thread_id
 
@@ -21,7 +26,8 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    month_meta = current_month(db.list_months(scope))
+    today = today_for_scope(scope)
+    month_meta = current_month(db.list_months(scope), today=today)
     if month_meta is None or month_meta["status"] != "finalized":
         await update.effective_message.reply_text(
             "No finalized squad right now — skips only apply once a month has been finalized."
@@ -29,7 +35,7 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     month = month_meta["month"]
-    next_date = next_game_date(month_meta["game_dates"])
+    next_date = next_game_date(month_meta["game_dates"], today=today)
     if next_date is None:
         await update.effective_message.reply_text(
             f"No more games scheduled for {month}."
@@ -100,7 +106,7 @@ async def skip_pick_callback(
         )
         return
 
-    month_meta = current_month(db.list_months(scope))
+    month_meta = current_month(db.list_months(scope), today=today_for_scope(scope))
     if month_meta is None or date_str not in month_meta["game_dates"]:
         await query.answer("This game is no longer valid.", show_alert=True)
         return
@@ -230,7 +236,7 @@ async def replace_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await query.answer("This offer isn't for you.", show_alert=True)
         return
 
-    month_meta = current_month(db.list_months(scope))
+    month_meta = current_month(db.list_months(scope), today=today_for_scope(scope))
     if month_meta is None:
         await query.answer("This offer is no longer valid.", show_alert=True)
         return

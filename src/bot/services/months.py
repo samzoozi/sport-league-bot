@@ -1,7 +1,10 @@
 import calendar
 import re
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import ROUND_DOWN, Decimal
+from zoneinfo import ZoneInfo
+
+from bot import db
 
 MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
@@ -14,6 +17,35 @@ WEEKDAY_NAMES = [
     "Saturday",
     "Sunday",
 ]
+
+DEFAULT_TIMEZONE = "UTC"
+
+TIMEZONE_CHOICES = {
+    "Eastern": "America/New_York",
+    "Central": "America/Chicago",
+    "Mountain": "America/Denver",
+    "Pacific": "America/Los_Angeles",
+    "UTC": "UTC",
+}
+
+# Display text for the /settimezone buttons — keyed the same as
+# TIMEZONE_CHOICES so callback_data/typed args can keep using the short key
+# while the button itself shows something a non-technical admin recognizes.
+TIMEZONE_LABELS = {
+    "Eastern": "Eastern Time (Toronto, NYC)",
+    "Central": "Central Time (Chicago, Winnipeg)",
+    "Mountain": "Mountain Time (Denver, Calgary)",
+    "Pacific": "Pacific Time (LA, Vancouver)",
+    "UTC": "UTC",
+}
+
+
+def parse_timezone_choice(text: str) -> str | None:
+    text = text.strip().lower()
+    for label, tz_name in TIMEZONE_CHOICES.items():
+        if text == label.lower():
+            return tz_name
+    return None
 
 
 def parse_weekday(text: str) -> int | None:
@@ -52,6 +84,18 @@ def split_cost(total_cost, count: int) -> Decimal:
     return (Decimal(str(total_cost)) / count).quantize(
         Decimal("0.01"), rounding=ROUND_DOWN
     )
+
+
+def today_for_scope(scope: str, now: datetime | None = None) -> str:
+    """ "Today" as of the group's configured timezone (UTC if never set via
+    /settimezone), not the naive server clock — a game can otherwise vanish
+    from /nextgame or stay "skippable" for hours on the wrong side of local
+    midnight. `now` is only for tests; production always converts the real
+    current instant."""
+    group = db.get_group(scope)
+    tz_name = (group or {}).get("timezone") or DEFAULT_TIMEZONE
+    moment = now or datetime.now(UTC)
+    return moment.astimezone(ZoneInfo(tz_name)).date().isoformat()
 
 
 def next_game_date(game_dates: list[str], today: str | None = None) -> str | None:

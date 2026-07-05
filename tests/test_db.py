@@ -13,6 +13,17 @@ def test_create_and_get_group():
     assert group["title"] == "Test Group"
 
 
+def test_set_timezone_updates_existing_group():
+    db.create_group(SCOPE, "Test Group", "Monday")
+    assert "timezone" not in db.get_group(SCOPE)
+
+    db.set_timezone(SCOPE, "America/New_York")
+
+    group = db.get_group(SCOPE)
+    assert group["timezone"] == "America/New_York"
+    assert group["weekday"] == "Monday"
+
+
 def test_upsert_player_creates_then_updates():
     db.upsert_player(SCOPE, 111, "Ali", "aliusername", "ali@example.com")
     player = db.get_player(SCOPE, 111)

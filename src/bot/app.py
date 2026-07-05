@@ -30,6 +30,7 @@ PLAYER_COMMANDS = [
 
 ADMIN_COMMANDS = PLAYER_COMMANDS + [
     BotCommand("setupgroup", "One-time setup — tap a weekday"),
+    BotCommand("settimezone", "Set this league's timezone — tap one"),
     BotCommand("newmonth", "Open signups: /newmonth <YYYY-MM> <total_cost>"),
     BotCommand(
         "deletemonth", "Delete an open (non-finalized) month: /deletemonth <YYYY-MM>"
@@ -91,6 +92,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("nextgame", player.nextgame))
     application.add_handler(CommandHandler("games", player.games))
     application.add_handler(CommandHandler("setupgroup", setup.setupgroup))
+    application.add_handler(CommandHandler("settimezone", setup.settimezone))
     application.add_handler(CommandHandler("newmonth", admin.newmonth))
     application.add_handler(CommandHandler("deletemonth", admin.deletemonth))
     application.add_handler(CommandHandler("addtosquad", admin.addtosquad))
@@ -115,6 +117,9 @@ def build_application() -> Application:
     )
     application.add_handler(
         CallbackQueryHandler(setup.setupgroup_callback, pattern=r"^setupgroup:")
+    )
+    application.add_handler(
+        CallbackQueryHandler(setup.settimezone_callback, pattern=r"^settimezone:")
     )
     application.add_handler(
         ChatMemberHandler(setup.guard_chat_membership, ChatMemberHandler.MY_CHAT_MEMBER)

@@ -78,6 +78,15 @@ def create_group(scope: str, title: str, weekday: str) -> None:
     )
 
 
+def set_timezone(scope: str, timezone: str) -> None:
+    table().update_item(
+        Key={"PK": scope, "SK": "META"},
+        UpdateExpression="SET #tz = :tz",
+        ExpressionAttributeNames={"#tz": "timezone"},
+        ExpressionAttributeValues={":tz": timezone},
+    )
+
+
 def get_player(scope: str, user_id: int) -> dict | None:
     resp = table().get_item(Key={"PK": scope, "SK": player_sk(user_id)})
     return resp.get("Item")

@@ -1,14 +1,20 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 
+from bot import db
 from bot.services.months import (
     current_month,
     game_dates_for_month,
     month_for_date,
     next_game_date,
     parse_month,
+    parse_timezone_choice,
     parse_weekday,
     split_cost,
+    today_for_scope,
 )
+
+SCOPE = "GROUP#-1009999999999"
 
 
 def test_parse_weekday_full_name():
@@ -170,3 +176,30 @@ def test_month_for_date_finds_the_owning_month_regardless_of_status():
 def test_month_for_date_returns_none_for_unscheduled_date():
     july = {"month": "2026-07", "status": "finalized", "game_dates": ["2026-07-06"]}
     assert month_for_date([july], "2026-07-13") is None
+
+
+def test_parse_timezone_choice_matches_known_labels_case_insensitively():
+    assert parse_timezone_choice("Eastern") == "America/New_York"
+    assert parse_timezone_choice("pacific") == "America/Los_Angeles"
+    assert parse_timezone_choice("UTC") == "UTC"
+
+
+def test_parse_timezone_choice_rejects_unknown_label():
+    assert parse_timezone_choice("Atlantic") is None
+
+
+def test_today_for_scope_defaults_to_utc_when_never_set():
+    db.create_group(SCOPE, "Test Group", "Monday")
+    # 1am UTC on the 10th is still the 9th in US timezones, but "today" should
+    # stay on the UTC-calendar date until an admin runs /settimezone.
+    now = datetime(2026, 7, 10, 1, 0, tzinfo=UTC)
+    assert today_for_scope(SCOPE, now=now) == "2026-07-10"
+
+
+def test_today_for_scope_uses_the_configured_timezone():
+    db.create_group(SCOPE, "Test Group", "Monday")
+    db.set_timezone(SCOPE, "America/New_York")
+    # 1am UTC is 9pm the previous day in Eastern time (EDT, UTC-4, in July) —
+    # this is exactly the boundary bug /settimezone exists to fix.
+    now = datetime(2026, 7, 10, 1, 0, tzinfo=UTC)
+    assert today_for_scope(SCOPE, now=now) == "2026-07-09"

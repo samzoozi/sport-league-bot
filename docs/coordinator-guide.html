@@ -394,9 +394,9 @@
   <ul>
     <li><code>/addplayer</code> can add someone even if the whole squad already showed up — they're added
       as an extra person for that game, on top of the normal roster.</li>
-    <li><code>/removeplayer</code> is a quiet removal — it does <strong>not</strong> offer their spot to
-      the waitlist the way <code>/skip</code> does. If you also want the spot filled, tell someone to run
-      <code>/addtowaitlist</code> for that date separately.</li>
+    <li><code>/removeplayer</code> offers the vacated spot to the waitlist automatically, the same way
+      <code>/skip</code> does — whoever's next in line gets tagged with an Accept/Decline offer (or, if
+      nobody's waiting, the bot announces that the spot is open).</li>
     <li>Removing a squad member this way shows up on <code>/nextgame</code> exactly like a normal skip —
       <code>❌ Name (no replacement yet)</code> — rather than disappearing from the list.</li>
   </ul>
@@ -515,7 +515,7 @@
     <tr><td><code>/newmonth</code></td><td><code>/newmonth &lt;YYYY-MM&gt; &lt;total_cost&gt; [skip-dates...]</code></td></tr>
     <tr><td><code>/deletemonth</code></td><td><code>/deletemonth &lt;YYYY-MM&gt;</code> — open months only</td></tr>
     <tr><td><code>/addtosquad</code> / <code>/removefromsquad</code></td><td>Reply to their message, or tag them — open months only</td></tr>
-    <tr><td><code>/addplayer</code> / <code>/removeplayer</code></td><td><code>@user &lt;YYYY-MM-DD&gt;</code> — one specific finalized game only, doesn't touch balances or the waitlist</td></tr>
+    <tr><td><code>/addplayer</code> / <code>/removeplayer</code></td><td><code>@user &lt;YYYY-MM-DD&gt;</code> — one specific finalized game only, doesn't touch balances (<code>/removeplayer</code> does offer the vacated spot to the waitlist)</td></tr>
     <tr><td><code>/finalize</code></td><td><code>/finalize [max_players]</code></td></tr>
     <tr><td><code>/charge</code> / <code>/credit</code></td><td><code>&lt;amount&gt; &lt;desc&gt;</code> — reply or tag one player</td></tr>
     <tr><td><code>/chargeall</code> / <code>/creditall</code></td><td><code>&lt;YYYY-MM&gt; &lt;amount&gt; &lt;desc&gt;</code> — whole squad</td></tr>

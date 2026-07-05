@@ -16,7 +16,7 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 HELP_MESSAGE = (
     "Player commands:\n"
-    "/register <email> [display name] — register with this group's bot "
+    "/register <email> <display name> — register with this group's bot "
     "(re-run to update your email or name)\n"
     "/setemail <email> — update just your e-transfer email\n"
     "/emails — list everyone's e-transfer email\n"
@@ -46,20 +46,15 @@ HELP_MESSAGE = (
 )
 
 
-def _display_name(update: Update) -> str:
-    user = update.effective_user
-    return user.full_name or user.username or str(user.id)
-
-
 async def help_(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(HELP_MESSAGE)
 
 
 @require_group_setup
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.args:
+    if len(context.args) < 2:
         await update.effective_message.reply_text(
-            "Usage: /register <email> [display name]"
+            "Usage: /register <email> <display name>"
         )
         return
 
@@ -70,10 +65,9 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    display_name = " ".join(context.args[1:]).strip()
+    name = " ".join(context.args[1:]).strip()
     scope = resolve_scope(update)
     user = update.effective_user
-    name = display_name or _display_name(update)
 
     already_registered = db.get_player(scope, user.id) is not None
     db.upsert_player(scope, user.id, name, user.username, email)
@@ -93,7 +87,7 @@ async def setemail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     player = db.get_player(scope, user.id)
     if player is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> [display name] first."
+            "You haven't registered yet — run /register <email> <display name> first."
         )
         return
 
@@ -136,7 +130,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     player = db.get_player(scope, user.id)
     if player is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> [display name]."
+            "You haven't registered yet — run /register <email> <display name>."
         )
         return
 
@@ -203,7 +197,7 @@ async def addtowaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if db.get_player(scope, user.id) is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> [display name] first."
+            "You haven't registered yet — run /register <email> <display name> first."
         )
         return
 
@@ -277,7 +271,7 @@ async def leavewaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if db.get_player(scope, user.id) is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> [display name] first."
+            "You haven't registered yet — run /register <email> <display name> first."
         )
         return
 

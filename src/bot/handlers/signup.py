@@ -47,7 +47,7 @@ async def signup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     if db.get_player(scope, user.id) is None:
         await query.answer(
-            "Please run /register <email> [display name] first.", show_alert=True
+            "Please run /register <email> <display name> first.", show_alert=True
         )
         return
 

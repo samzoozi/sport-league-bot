@@ -36,7 +36,7 @@ async def test_skip_after_accepting_own_replacement_reopens_the_skip():
     _setup_squad()
 
     # Afsaneh (2) skips the game.
-    update, context = _make_callback_update(2, f"skip:pick:{DATE}")
+    update, context = _make_callback_update(2, f"skip:pick:{DATE}:2")
     await skip_pick_callback(update, context)
     assert db.get_skip(SCOPE, DATE, 2)["status"] == "open"
 
@@ -51,7 +51,7 @@ async def test_skip_after_accepting_own_replacement_reopens_the_skip():
     # Tapping "skip" again should NOT be rejected as "already skipped" — she's
     # legitimately playing again and should be able to back out for real this
     # time, reopening the spot instead of being silently blocked forever.
-    update, context = _make_callback_update(2, f"skip:pick:{DATE}")
+    update, context = _make_callback_update(2, f"skip:pick:{DATE}:2")
     await skip_pick_callback(update, context)
 
     already_skipped_alerts = [
@@ -64,6 +64,24 @@ async def test_skip_after_accepting_own_replacement_reopens_the_skip():
     skip = db.get_skip(SCOPE, DATE, 2)
     assert skip["status"] == "open"
     assert skip["replacement_id"] is None
+
+
+async def test_skip_pick_callback_rejects_a_different_user_than_the_requester():
+    _setup_squad()
+
+    # Layla (1) is the one who ran /skip, so the button is tagged with her id.
+    # Afsaneh (2) tapping the same button in the group should be rejected
+    # instead of silently skipping Afsaneh's own spot.
+    update, context = _make_callback_update(2, f"skip:pick:{DATE}:1")
+    await skip_pick_callback(update, context)
+
+    update.callback_query.answer.assert_awaited_once()
+    args, kwargs = update.callback_query.answer.await_args
+    assert "isn't your skip request" in args[0].lower()
+    assert kwargs.get("show_alert") is True
+
+    assert db.get_skip(SCOPE, DATE, 1) is None
+    assert db.get_skip(SCOPE, DATE, 2) is None
 
 
 async def test_removeplayer_offers_the_vacated_spot_to_the_waitlist():

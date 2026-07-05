@@ -1,3 +1,5 @@
+import math
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -22,6 +24,19 @@ NO_BALANCE_CHANGE_WARNING = (
 )
 
 
+def _parse_positive_amount(text: str) -> float | None:
+    """Parse a user-supplied amount, rejecting anything that isn't a positive,
+    finite number — plain float() also accepts "inf"/"nan", which would
+    otherwise slip past a bare `<= 0` check."""
+    try:
+        amount = float(text)
+    except ValueError:
+        return None
+    if not math.isfinite(amount) or amount <= 0:
+        return None
+    return amount
+
+
 @require_group_admin
 @require_group_setup
 async def newmonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -41,11 +56,8 @@ async def newmonth(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
 
-    try:
-        total_cost = float(args[1])
-        if total_cost <= 0:
-            raise ValueError
-    except ValueError:
+    total_cost = _parse_positive_amount(args[1])
+    if total_cost is None:
         await update.effective_message.reply_text(
             "Total cost must be a positive number."
         )
@@ -382,11 +394,8 @@ async def _adjust_balance(
         await update.effective_message.reply_text("Usage: <amount> [description]")
         return
 
-    try:
-        amount = float(rest[0])
-        if amount <= 0:
-            raise ValueError
-    except ValueError:
+    amount = _parse_positive_amount(rest[0])
+    if amount is None:
         await update.effective_message.reply_text("Amount must be a positive number.")
         return
 
@@ -425,11 +434,8 @@ async def _adjust_balance_all(
         return
 
     month_key = args[0]
-    try:
-        amount = float(args[1])
-        if amount <= 0:
-            raise ValueError
-    except ValueError:
+    amount = _parse_positive_amount(args[1])
+    if amount is None:
         await update.effective_message.reply_text("Amount must be a positive number.")
         return
 

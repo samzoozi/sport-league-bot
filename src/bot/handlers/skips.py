@@ -55,7 +55,8 @@ async def skip_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         [
             [
                 InlineKeyboardButton(
-                    f"Confirm skip {next_date}", callback_data=f"skip:pick:{next_date}"
+                    f"Confirm skip {next_date}",
+                    callback_data=f"skip:pick:{next_date}:{user.id}",
                 )
             ]
         ]
@@ -87,11 +88,17 @@ async def skip_pick_callback(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     query = update.callback_query
-    _, _, date_str = query.data.split(":")
+    _, _, date_str, requester_id_str = query.data.split(":")
     chat_id = update.effective_chat.id
     scope = resolve_scope(update)
     thread_id = topic_thread_id(update)
     user = update.effective_user
+
+    if user.id != int(requester_id_str):
+        await query.answer(
+            "This isn't your skip request — run /skip yourself.", show_alert=True
+        )
+        return
 
     month_meta = current_month(db.list_months(scope))
     if month_meta is None or date_str not in month_meta["game_dates"]:

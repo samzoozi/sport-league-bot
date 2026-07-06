@@ -224,6 +224,16 @@
       the weekday your league plays on every week, and only needs to be done once, ever.
     </div>
   </div>
+  <div class="step">
+    <div class="num">3</div>
+    <div class="content">
+      <strong>Run <code>/settimezone</code> (optional, but recommended).</strong>
+      Tap your league's timezone from the buttons that appear (Eastern, Central, Mountain, Pacific, or
+      UTC). Until you do this, the bot treats "today" as UTC, which can make a game disappear from
+      <code>/nextgame</code> or a skip/waitlist offer stay open a few hours too long around your local
+      midnight. You can re-run this any time to correct it.
+    </div>
+  </div>
   <div class="card tip">
     <strong>Who counts as an admin?</strong>
     The bot doesn't keep its own admin list — anyone Telegram considers an admin or owner of your group
@@ -407,16 +417,17 @@
   <p>Every player has a running balance (negative = they owe money, positive = they're in credit).</p>
   <table class="cmd-table">
     <tr><th>Command</th><th>What it does</th></tr>
-    <tr><td><code>/charge @user &lt;amount&gt; &lt;desc&gt;</code></td><td>Adds a one-off charge to one player (reply to their message or tag them).</td></tr>
-    <tr><td><code>/credit @user &lt;amount&gt; &lt;desc&gt;</code></td><td>Adds a one-off credit to one player.</td></tr>
+    <tr><td><code>/charge @user [@user2 ...] &lt;amount&gt; &lt;desc&gt;</code></td><td>Adds a one-off charge to one or more players, all for the same amount (reply to their message, or tag one or more people).</td></tr>
+    <tr><td><code>/credit @user [@user2 ...] &lt;amount&gt; &lt;desc&gt;</code></td><td>Adds a one-off credit to one or more players.</td></tr>
     <tr><td><code>/chargeall &lt;YYYY-MM&gt; &lt;amount&gt; &lt;desc&gt;</code></td><td>Charges the <em>same flat amount</em> to every player in that month's squad, in one shot.</td></tr>
     <tr><td><code>/creditall &lt;YYYY-MM&gt; &lt;amount&gt; &lt;desc&gt;</code></td><td>Credits the same flat amount to every player in that month's squad.</td></tr>
-    <tr><td><code>/paid @user &lt;amount&gt;</code></td><td>Records that a player has paid you (e.g. by e-transfer) — moves their balance up.</td></tr>
+    <tr><td><code>/paid @user [@user2 ...] &lt;amount&gt;</code></td><td>Records that one or more players have paid you (e.g. by e-transfer) — moves their balance up.</td></tr>
     <tr><td><code>/balances</code></td><td>Shows everyone's current balance.</td></tr>
   </table>
   <p>Some situations where these are handy:</p>
   <ul>
     <li>A player e-transfers you their monthly share → <code>/paid @them 75</code>.</li>
+    <li>Several people e-transfer you the same amount → tag them all in one go: <code>/paid @alice @bob @carol 75</code>.</li>
     <li>You need to correct a mistake from <code>/finalize</code> (e.g. the court actually cost less) → <code>/creditall 2026-08 5 court cost correction</code>.</li>
     <li>Someone needs to be added to a finalized month's charges after the fact → <code>/charge @them 75 August court share</code>.</li>
   </ul>
@@ -504,6 +515,15 @@
     holding two spots at once, though: if they're already covering another skipped spot, a further
     attempt to grab yet another one is blocked.
   </p>
+
+  <h3>Why would I bother setting a timezone?</h3>
+  <p>
+    Without it, the bot decides what "today" is using UTC, not your league's local time. Depending on
+    where you play, that can make a game vanish from <code>/nextgame</code> while it's still evening
+    locally, or leave a <code>/skip</code>/waitlist offer looking "valid" for a few hours after the game
+    has actually started. Run <code>/settimezone</code> once (see "Getting started") and this goes away —
+    it's safe to re-run any time if you picked the wrong one.
+  </p>
 </section>
 
 <section id="reference">
@@ -512,14 +532,15 @@
   <table class="cmd-table">
     <tr><th>Command</th><th>Usage</th></tr>
     <tr><td><code>/setupgroup</code></td><td>One-time setup — tap a weekday, or <code>/setupgroup &lt;weekday&gt;</code></td></tr>
+    <tr><td><code>/settimezone</code></td><td>Tap your league's timezone, or <code>/settimezone &lt;name&gt;</code> — defaults to UTC until set, safe to re-run</td></tr>
     <tr><td><code>/newmonth</code></td><td><code>/newmonth &lt;YYYY-MM&gt; &lt;total_cost&gt; [skip-dates...]</code></td></tr>
     <tr><td><code>/deletemonth</code></td><td><code>/deletemonth &lt;YYYY-MM&gt;</code> — open months only</td></tr>
     <tr><td><code>/addtosquad</code> / <code>/removefromsquad</code></td><td>Reply to their message, or tag them — open months only</td></tr>
     <tr><td><code>/addplayer</code> / <code>/removeplayer</code></td><td><code>@user &lt;YYYY-MM-DD&gt;</code> — one specific finalized game only, doesn't touch balances (<code>/removeplayer</code> does offer the vacated spot to the waitlist)</td></tr>
     <tr><td><code>/finalize</code></td><td><code>/finalize [max_players]</code></td></tr>
-    <tr><td><code>/charge</code> / <code>/credit</code></td><td><code>&lt;amount&gt; &lt;desc&gt;</code> — reply or tag one player</td></tr>
+    <tr><td><code>/charge</code> / <code>/credit</code></td><td><code>@user [@user2 ...] &lt;amount&gt; &lt;desc&gt;</code> — reply or tag one or more players</td></tr>
     <tr><td><code>/chargeall</code> / <code>/creditall</code></td><td><code>&lt;YYYY-MM&gt; &lt;amount&gt; &lt;desc&gt;</code> — whole squad</td></tr>
-    <tr><td><code>/paid</code></td><td><code>@user &lt;amount&gt;</code></td></tr>
+    <tr><td><code>/paid</code></td><td><code>@user [@user2 ...] &lt;amount&gt;</code></td></tr>
     <tr><td><code>/balances</code></td><td>Everyone's balance</td></tr>
   </table>
 

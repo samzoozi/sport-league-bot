@@ -16,7 +16,11 @@ from bot.services.months import (
 )
 from bot.services.permissions import require_group_admin, require_group_setup
 from bot.services.scope import resolve_scope, topic_thread_id
-from bot.services.users import resolve_target_and_rest, resolve_target_user
+from bot.services.users import (
+    resolve_target_and_rest,
+    resolve_target_user,
+    resolve_targets_and_rest,
+)
 
 NO_BALANCE_CHANGE_WARNING = (
     "This does NOT adjust anyone's balance — use /charge or /credit manually "
@@ -383,10 +387,18 @@ async def _adjust_balance(
     label: str,
     default_desc: str,
 ) -> None:
-    target, rest = resolve_target_and_rest(update, context)
-    if target is None:
+    targets, unresolved, rest = resolve_targets_and_rest(update, context)
+
+    if unresolved:
         await update.effective_message.reply_text(
-            "Reply to their message, or specify @username, followed by an amount."
+            f"Couldn't find {', '.join(unresolved)} — they need to have messaged "
+            "in this group before you can @mention them by username."
+        )
+        return
+
+    if not targets:
+        await update.effective_message.reply_text(
+            "Reply to their message, or specify @username(s), followed by an amount."
         )
         return
 
@@ -402,15 +414,29 @@ async def _adjust_balance(
     description = " ".join(rest[1:]).strip() or default_desc
     scope = resolve_scope(update)
 
-    db.ensure_player_stub(scope, target["user_id"], target["name"], target["username"])
-    db.add_transaction(
-        scope, target["user_id"], sign * amount, description, created_by="admin"
-    )
+    balances = []
+    for target in targets:
+        db.ensure_player_stub(
+            scope, target["user_id"], target["name"], target["username"]
+        )
+        db.add_transaction(
+            scope, target["user_id"], sign * amount, description, created_by="admin"
+        )
+        player = db.get_player(scope, target["user_id"])
+        balances.append((target["name"], player["balance"]))
 
-    player = db.get_player(scope, target["user_id"])
-    await update.effective_message.reply_text(
-        f"{label} {target['name']} ${amount:.2f} ({description}). New balance: ${player['balance']}."
-    )
+    if len(balances) == 1:
+        name, balance = balances[0]
+        await update.effective_message.reply_text(
+            f"{label} {name} ${amount:.2f} ({description}). New balance: ${balance}."
+        )
+    else:
+        names = ", ".join(name for name, _ in balances)
+        balances_text = ", ".join(f"{name} ${balance}" for name, balance in balances)
+        await update.effective_message.reply_text(
+            f"{label} ${amount:.2f} ({description}) for {names}. "
+            f"New balances: {balances_text}."
+        )
 
 
 @require_group_admin

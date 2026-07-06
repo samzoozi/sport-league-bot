@@ -39,11 +39,12 @@ HELP_MESSAGE = (
     "/finalize [max_players] — lock the squad and charge everyone their share\n"
     "/addplayer, /removeplayer <YYYY-MM-DD> — add/remove someone from one "
     "finalized game only (doesn't touch balances or the waitlist)\n"
-    "/charge @user <amount> <desc> — reply to their message or use @username\n"
-    "/credit @user <amount> <desc> — reply to their message or use @username\n"
+    "/charge @user [@user2 ...] <amount> <desc> — reply to a message, or tag one "
+    "or more people, to charge them all the same amount\n"
+    "/credit @user [@user2 ...] <amount> <desc> — same targeting, but credits instead\n"
     "/chargeall <YYYY-MM> <amount> <desc> — charge that month's whole squad the same amount each\n"
     "/creditall <YYYY-MM> <amount> <desc> — credit that month's whole squad the same amount each\n"
-    "/paid @user <amount> — record a payment received\n"
+    "/paid @user [@user2 ...] <amount> — record a payment received from one or more people\n"
     "/balances — show everyone's balance"
 )
 

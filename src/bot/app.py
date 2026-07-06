@@ -46,8 +46,14 @@ ADMIN_COMMANDS = PLAYER_COMMANDS + [
         "Remove a player from one finalized game: /removeplayer @user <YYYY-MM-DD>",
     ),
     BotCommand("finalize", "Lock the squad and charge everyone their share"),
-    BotCommand("charge", "Charge a player: /charge @user <amount> <desc>"),
-    BotCommand("credit", "Credit a player: /credit @user <amount> <desc>"),
+    BotCommand(
+        "charge",
+        "Charge one or more players: /charge @user [@user2 ...] <amount> <desc>",
+    ),
+    BotCommand(
+        "credit",
+        "Credit one or more players: /credit @user [@user2 ...] <amount> <desc>",
+    ),
     BotCommand(
         "chargeall",
         "Charge a whole month's squad: /chargeall <YYYY-MM> <amount> <desc>",
@@ -56,7 +62,7 @@ ADMIN_COMMANDS = PLAYER_COMMANDS + [
         "creditall",
         "Credit a whole month's squad: /creditall <YYYY-MM> <amount> <desc>",
     ),
-    BotCommand("paid", "Record a payment: /paid @user <amount>"),
+    BotCommand("paid", "Record a payment: /paid @user [@user2 ...] <amount>"),
     BotCommand("balances", "Show everyone's balance"),
 ]
 

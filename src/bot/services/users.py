@@ -81,3 +81,61 @@ def resolve_target_and_rest(update: Update, context) -> tuple[dict | None, list[
         return target, args[1:]
 
     return None, args
+
+
+def resolve_targets_and_rest(
+    update: Update, context
+) -> tuple[list[dict], list[str], list[str]]:
+    """Like resolve_target_and_rest, but resolves every leading target instead
+    of just one, for commands where the same amount applies to several people
+    at once (e.g. `/paid @alice @bob 20 court fee`, or several mention-picker
+    taps in a row). A reply-to-message is still exactly one target — you can
+    only reply to one message.
+
+    Returns (targets, unresolved_usernames, rest). unresolved_usernames lists
+    any leading @token that didn't match a known player, so the caller can
+    name exactly which one failed instead of it silently falling through and
+    getting misparsed as the amount."""
+    message = update.effective_message
+    args = list(context.args)
+
+    if message.reply_to_message is not None:
+        user = message.reply_to_message.from_user
+        target = {
+            "user_id": user.id,
+            "name": user.full_name,
+            "username": user.username,
+        }
+        return [target], [], args
+
+    mention_entities = sorted(
+        (e for e in (message.entities or []) if e.type == "text_mention"),
+        key=lambda e: e.offset,
+    )
+    if mention_entities:
+        targets = [
+            {
+                "user_id": e.user.id,
+                "name": e.user.full_name,
+                "username": e.user.username,
+            }
+            for e in mention_entities
+        ]
+        last = mention_entities[-1]
+        remainder = message.text[last.offset + last.length :].strip()
+        rest = remainder.split() if remainder else []
+        return targets, [], rest
+
+    scope = resolve_scope(update)
+    targets = []
+    unresolved = []
+    i = 0
+    while i < len(args) and args[i].startswith("@"):
+        target = _lookup_by_username(scope, args[i])
+        if target is None:
+            unresolved.append(args[i])
+        else:
+            targets.append(target)
+        i += 1
+
+    return targets, unresolved, args[i:]

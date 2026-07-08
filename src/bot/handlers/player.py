@@ -14,10 +14,12 @@ from bot.services.scope import resolve_scope, topic_thread_id
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
+
 HELP_MESSAGE = (
     "Player commands:\n"
-    "/register <email> <display name> — register with this group's bot "
-    "(re-run to update your email or name)\n"
+    "/register [email] [display name] — register with this group's bot "
+    "(both optional — an omitted name defaults to your Telegram name, and "
+    "an omitted email leaves it unset; re-run anytime to update either one)\n"
     "/setemail <email> — update just your e-transfer email\n"
     "/emails — list everyone's e-transfer email\n"
     "/balance — your balance and recent transactions\n"
@@ -55,31 +57,43 @@ async def help_(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 @require_group_setup
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if len(context.args) < 2:
-        await update.effective_message.reply_text(
-            "Usage: /register <email> <display name>"
-        )
-        return
-
-    email = context.args[0]
-    if not EMAIL_RE.match(email):
-        await update.effective_message.reply_text(
-            "That doesn't look like a valid email."
-        )
-        return
-
-    name = " ".join(context.args[1:]).strip()
     scope = resolve_scope(update)
     user = update.effective_user
+    args = list(context.args)
 
-    already_registered = db.get_player(scope, user.id) is not None
+    email = None
+    name_args = args
+
+    if args and "@" in args[0]:
+        if not EMAIL_RE.match(args[0]):
+            await update.effective_message.reply_text(
+                "That doesn't look like a valid email."
+            )
+            return
+        email = args[0]
+        name_args = args[1:]
+
+    name = " ".join(name_args).strip() or None
+
+    existing = db.get_player(scope, user.id)
+    if email is None:
+        email = existing.get("email") if existing else None
+    if name is None:
+        name = existing["name"] if existing else user.full_name
+
     db.upsert_player(scope, user.id, name, user.username, email)
 
-    if already_registered:
-        await update.effective_message.reply_text(f"Updated: {name}, {email}.")
+    if existing is not None:
+        detail = f", {email}." if email else "."
+        await update.effective_message.reply_text(f"Updated: {name}{detail}")
     else:
+        detail = (
+            f"with email {email}"
+            if email
+            else "(no email set yet — run /setemail <email> to add one)"
+        )
         await update.effective_message.reply_text(
-            f"Welcome {name}! You're registered with email {email}. Use /help to see what I can do."
+            f"Welcome {name}! You're registered {detail}. Use /help to see what I can do."
         )
 
 
@@ -90,7 +104,7 @@ async def setemail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     player = db.get_player(scope, user.id)
     if player is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> <display name> first."
+            "You haven't registered yet — run /register first."
         )
         return
 
@@ -133,7 +147,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     player = db.get_player(scope, user.id)
     if player is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> <display name>."
+            "You haven't registered yet — run /register first."
         )
         return
 
@@ -201,7 +215,7 @@ async def addtowaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if db.get_player(scope, user.id) is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> <display name> first."
+            "You haven't registered yet — run /register first."
         )
         return
 
@@ -276,7 +290,7 @@ async def leavewaitlist(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if db.get_player(scope, user.id) is None:
         await update.effective_message.reply_text(
-            "You haven't registered yet — run /register <email> <display name> first."
+            "You haven't registered yet — run /register first."
         )
         return
 

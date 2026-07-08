@@ -93,7 +93,7 @@ def get_player(scope: str, user_id: int) -> dict | None:
 
 
 def upsert_player(
-    scope: str, user_id: int, name: str, username: str | None, email: str
+    scope: str, user_id: int, name: str, username: str | None, email: str | None
 ) -> None:
     table().update_item(
         Key={"PK": scope, "SK": player_sk(user_id)},

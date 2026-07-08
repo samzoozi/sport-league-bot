@@ -10,13 +10,13 @@ gaps, and things that can go wrong when this bot is used in a live group chat.
   member tapping it — not just whoever ran `/skip` — had the skip applied to
   themselves. Fixed by embedding the requester's user id in the callback data
   and rejecting taps from anyone else, matching the ownership check
-  `replace_callback` already had. (`src/bot/handlers/skips.py`)
+  `replace_callback` already had. (`packages/bot/bot/handlers/skips.py`)
 - **NaN/Infinity bypassing money validation.** `float()` accepts `"inf"`/
   `"nan"` (case-insensitively), and `nan <= 0` / `inf <= 0` are both `False`,
   so `/newmonth`, `/charge`, `/credit`, `/paid`, `/chargeall`, `/creditall`
   all let non-finite amounts through their `<= 0` guard, corrupting a
   balance or a month's `total_cost`. Fixed via `_parse_positive_amount()` in
-  `src/bot/handlers/admin.py`, which also requires `math.isfinite()`.
+  `packages/bot/bot/handlers/admin.py`, which also requires `math.isfinite()`.
 - **No timezone awareness.** `next_game_date`/`current_month` compared game
   dates against `date.today()` using the Lambda's server clock (UTC), so a
   game could vanish from "next game" while it was still evening locally, or

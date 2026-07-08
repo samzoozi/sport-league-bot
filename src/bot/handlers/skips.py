@@ -116,8 +116,17 @@ async def skip_pick_callback(
         await query.answer("You're not playing this game.", show_alert=True)
         return
 
-    if db.is_registered(scope, month, user.id):
-        existing_skip = db.get_skip(scope, date_str, user.id)
+    registered = db.is_registered(scope, month, user.id)
+    existing_skip = db.get_skip(scope, date_str, user.id) if registered else None
+    # If someone else already replaced their own skip (e.g. Sara took over
+    # Ali's spot), that original skip record no longer represents Ali's
+    # current attendance — even if Ali is still registered for the month.
+    owns_original_slot = existing_skip is None or (
+        existing_skip["status"] == "replaced"
+        and int(existing_skip["replacement_id"]) == user.id
+    )
+
+    if owns_original_slot and registered:
         if existing_skip is not None and existing_skip["status"] == "open":
             await query.answer("You've already skipped this game.")
             return
@@ -126,6 +135,24 @@ async def skip_pick_callback(
             db.add_skip(scope, date_str, user.id)
         else:
             db.reopen_skip(scope, date_str, owner_id, vacated_by=user.id)
+    elif db.get_extra_attendee(scope, date_str, user.id) is not None:
+        # Playing via an admin-added guest slot (/addplayer), independent of
+        # their own registration/skip — which may already be filled by
+        # someone else. Vacating it never offers a replacement, same as
+        # /removeplayer removing a guest.
+        db.remove_extra_attendee(scope, date_str, user.id)
+        await query.edit_message_text(f"You're marked as skipping {date_str}.")
+        await query.answer()
+        await post_game_card(
+            context.bot,
+            scope,
+            chat_id,
+            thread_id,
+            month,
+            month_meta["weekday"],
+            date_str,
+        )
+        return
     else:
         occupied = db.get_occupied_skip(scope, date_str, user.id)
         if occupied is None:

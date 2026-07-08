@@ -66,6 +66,34 @@ async def test_skip_after_accepting_own_replacement_reopens_the_skip():
     assert skip["replacement_id"] is None
 
 
+async def test_skip_after_being_readded_as_a_guest_does_not_evict_your_replacement():
+    _setup_squad()
+    db.upsert_player(SCOPE, 3, "Sara", None, "p3@example.com")
+    db.add_waitlist(SCOPE, DATE, 3)
+
+    # Layla (1) skips, Sara (3) is offered the spot and accepts it.
+    update, context = _make_callback_update(1, f"skip:pick:{DATE}:1")
+    await skip_pick_callback(update, context)
+    update, context = _make_callback_update(3, f"replace:accept:{DATE}:1:3")
+    await replace_callback(update, context)
+    assert db.get_skip(SCOPE, DATE, 1)["status"] == "replaced"
+    assert int(db.get_skip(SCOPE, DATE, 1)["replacement_id"]) == 3
+
+    # An admin then re-adds Layla to the same game as an independent guest
+    # (e.g. via /addplayer), so she's now playing via that guest slot while
+    # her original slot is still filled by Sara.
+    db.add_extra_attendee(SCOPE, DATE, 1)
+
+    # Layla skips again — this must vacate HER guest slot, not Sara's spot.
+    update, context = _make_callback_update(1, f"skip:pick:{DATE}:1")
+    await skip_pick_callback(update, context)
+
+    skip = db.get_skip(SCOPE, DATE, 1)
+    assert skip["status"] == "replaced"
+    assert int(skip["replacement_id"]) == 3
+    assert db.get_extra_attendee(SCOPE, DATE, 1) is None
+
+
 async def test_skip_pick_callback_rejects_a_different_user_than_the_requester():
     _setup_squad()
 

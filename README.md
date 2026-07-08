@@ -104,4 +104,3 @@ Since only one delivery mechanism can be active, swap between them with:
 ## Project docs
 
 - [`CLAUDE.md`](CLAUDE.md) — architecture notes and conventions for anyone (human or AI) working on this codebase.
-- [`docs/PROGRESS.md`](docs/PROGRESS.md) — what's implemented so far and what's still remaining.
